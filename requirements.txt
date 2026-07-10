@@ -1,0 +1,14 @@
+# Local Semantic Search — runtime dependencies (fully local, no network at run time).
+# Install:  pip install -r requirements.txt
+# GPU is optional; CPU works out of the box (install a CPU torch build if you prefer).
+
+flask>=3.0
+sentence-transformers>=2.6
+faiss-cpu>=1.7
+rank-bm25>=0.2.2
+numpy>=1.24
+tqdm>=4.66
+pymupdf>=1.24          # PDF text extraction
+python-docx>=1.1       # .docx text extraction
+watchdog>=4.0          # live folder watching (Control mode)
+pywin32>=306 ; sys_platform == "win32"   # Windows Search content index (instant mode)

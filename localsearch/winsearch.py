@@ -1,0 +1,123 @@
+"""Instant GLOBAL content search by riding the OS's own content index."""
+import logging
+import re
+
+log = logging.getLogger("localsearch.winsearch")
+_PROVIDER = "Provider=Search.CollatorDSO;Extended Properties='Application=Windows';"
+_TERM = re.compile(r"[a-zA-Z0-9]+")
+_CJK_RUN = re.compile(r"[぀-ヿ㐀-䶿一-鿿]+")
+
+
+def _url_to_path(url):
+    """System.ItemUrl -> real filesystem path (canonical, non-localized names)."""
+    if url and url.lower().startswith("file:"):
+        url = url[5:]
+    return (url or "").replace("/", "\\")
+
+
+def _sanitize(text):
+    t = text.replace("'", " ").replace('"', " ").replace("\n", " ")
+    return " ".join(t.split())[:200]
+
+
+def _or_terms(terms):
+    """Split a sanitized query into OR-able terms: words + CJK bigrams."""
+    out = list(_TERM.findall(terms))
+    for run in _CJK_RUN.findall(terms):
+        if len(run) <= 2:
+            out.append(run)
+        else:
+            out.extend(run[i:i + 2] for i in range(len(run) - 1))
+
+    seen = set()
+    return [t for t in out if not (t.lower() in seen or seen.add(t.lower()))]
+
+
+def available():
+    try:
+        import win32com.client
+        conn = win32com.client.Dispatch("ADODB.Connection")
+        conn.Open(_PROVIDER)
+        conn.Close()
+        return True
+    except Exception as e:
+        log.info("Windows Search not available: %s", e)
+        return False
+
+
+def _run_sql(sql):
+    """Run one SystemIndex query -> [(path, snippet)] via a single GetRows call."""
+    import win32com.client
+    out = []
+    conn = None
+    try:
+        conn = win32com.client.Dispatch("ADODB.Connection")
+        conn.Open(_PROVIDER)
+        rs = win32com.client.Dispatch("ADODB.Recordset")
+        rs.Open(sql, conn)
+        if not rs.EOF:
+            data = rs.GetRows()
+            urls, snips = data[0], data[1]
+            for url, snip in zip(urls, snips):
+                path = _url_to_path(url)
+                if path:
+                    out.append((path, " ".join(str(snip or "").split())))
+        rs.Close()
+    except Exception as e:
+        log.warning("Windows Search query failed: %s", e)
+    finally:
+        try:
+            if conn is not None:
+                conn.Close()
+        except Exception:
+            pass
+    return out
+
+
+def _build_sql(where, limit):
+    return (f"SELECT TOP {int(limit)} System.ItemUrl, System.Search.AutoSummary "
+            f"FROM SystemIndex WHERE {where} ORDER BY System.Search.Rank DESC")
+
+
+def query(text, limit=200, scope=None, min_results=None):
+    """Whole-disk content search via the OS index -> [(path, snippet)], best-first."""
+    terms = _sanitize(text)
+    if not terms:
+        return []
+    scope_sql = ""
+    if scope:
+        scope_sql = " AND SCOPE='file:%s'" % str(scope).replace("'", "''")
+    strict = _run_sql(_build_sql(
+        f"FREETEXT(System.Search.Contents, '{terms}'){scope_sql}", limit))
+    want = min_results if min_results is not None else 0
+    if len(strict) >= max(want, limit // 4):
+        return strict
+    ors = _or_terms(terms)
+    if len(ors) < 2:
+        return strict
+    contains = " OR ".join(f'"{t}"' for t in ors)
+    loose = _run_sql(_build_sql(
+        f"CONTAINS(System.Search.Contents, '{contains}'){scope_sql}", limit))
+    seen = {p for p, _ in strict}
+    merged = strict + [(p, s) for p, s in loose if p not in seen]
+    return merged[:limit]
+
+
+if __name__ == "__main__":
+    import os
+    import sys
+    import time
+    q = sys.argv[1] if len(sys.argv) > 1 else "Microsoft license copyright"
+    print("Windows Search available:", available())
+    t0 = time.perf_counter()
+    res = query(q, limit=15)
+    dt = (time.perf_counter() - t0) * 1000
+    print(f"query={q!r} -> {len(res)} hits in {dt:.0f} ms (whole disk, no pre-indexing)")
+    exists = 0
+    for path, snip in res[:8]:
+        ok = os.path.exists(path)
+        exists += ok
+        print(f"  [{'open-able' if ok else 'BAD-PATH'}] {path}")
+        if snip:
+            print(f"       snippet: {snip[:90]}")
+    print(f"openable paths: {exists}/{min(8, len(res))}")

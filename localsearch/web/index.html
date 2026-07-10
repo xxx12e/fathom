@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本地语义搜索 · LocalSearch</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --fg:#1f2329; --mut:#6b7280;
+          --accent:#2563eb; --accent2:#1d4ed8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.5 system-ui,"Segoe UI","Microsoft YaHei",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:24px 18px 60px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  .head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:18px; }
+  .langbtn { flex:none; padding:6px 12px; border:1px solid var(--line); background:#fff;
+             border-radius:8px; cursor:pointer; font-size:13px; color:var(--fg); }
+  .langbtn:hover { border-color:var(--accent); color:var(--accent); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  input[type=text] { flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--line);
+                     border-radius:8px; font-size:15px; }
+  button { padding:9px 14px; border:1px solid var(--line); background:#fff; border-radius:8px;
+           cursor:pointer; font-size:14px; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.primary:hover { background:var(--accent2); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .toggle { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .toggle button { border:0; border-radius:0; background:#fff; }
+  .toggle button.on { background:var(--accent); color:#fff; }
+  .status { color:var(--mut); font-size:13px; }
+  .bar { height:8px; background:#e9edf3; border-radius:6px; overflow:hidden; margin-top:8px; display:none; }
+  .bar > div { height:100%; width:0; background:var(--accent); transition:width .2s; }
+  .res { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+  .res.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.18); }
+  .res .name { font-weight:600; }
+  .res .path { color:var(--mut); font-size:12px; word-break:break-all; margin:2px 0 6px; }
+  .res .snip { font-size:13.5px; color:#374151; background:#f3f5f8; border-radius:6px; padding:8px 10px; }
+  .res .acts { margin-top:8px; display:flex; gap:8px; }
+  .res .acts button { padding:5px 10px; font-size:13px; }
+  .score { color:var(--mut); font-size:12px; float:right; }
+  .empty { color:var(--mut); padding:8px 2px; }
+  .err { color:#b91c1c; font-size:13px; }
+  .note { color:var(--mut); font-size:13px; margin-top:8px; }
+  .note.warn { color:#b45309; }
+  mark { background:#fde68a; color:#1f2329; border-radius:3px; padding:0 1px; }
+  select { padding:9px 8px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .meta { color:var(--mut); font-size:12px; margin:4px 0 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .badge { background:#eef2f7; color:#374151; border-radius:4px; padding:1px 7px; font-size:11px; text-transform:uppercase; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:#eef2f7; border:1px solid var(--line);
+          border-radius:16px; padding:2px 6px 2px 10px; font-size:12px; margin:3px 4px 0 0; max-width:100%; }
+  .chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px; }
+  .chip button { border:0; background:transparent; padding:0 4px; font-size:13px; color:var(--mut); }
+  .chip button:hover { color:#b91c1c; }
+  .kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
+         font-size:11px; background:#fff; color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1><span data-i18n="app_title">本地语义搜索</span> <span style="font-size:13px;color:var(--mut)">LocalSearch</span></h1>
+      <div class="sub" data-i18n="app_sub">🔒 全部在本机运行，不联网，文件内容不会离开你的电脑。</div>
+    </div>
+    <button class="langbtn" id="langBtn" onclick="toggleLang()">EN</button>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:500"><span data-i18n="ctrl_title">掌控模式 · 深度索引</span>
+      <span style="font-size:12px;color:var(--mut)" data-i18n="ctrl_badge">独家</span></div>
+    <div class="note" style="margin:2px 0 8px" data-i18n-html="ctrl_note"></div>
+    <div class="row">
+      <input id="folder" type="text" data-i18n-ph="ph_folder">
+      <button onclick="pickFolder()" data-i18n="btn_browse">浏览…</button>
+      <button class="primary" id="addBtn" onclick="addFolder()" data-i18n="btn_add">扫描并掌控</button>
+      <button id="cancelBtn" onclick="cancelBuild()" style="display:none" data-i18n="btn_cancel">取消</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="note" style="margin:0" data-i18n="lbl_wholedisk">全盘扫描：</span>
+      <span id="drives"></span>
+      <button id="rescanBtn" onclick="rescan()" data-i18n="btn_rescan" data-i18n-title="ttl_rescan">重新扫描（仅变化）</button>
+    </div>
+    <div id="folderChips"></div>
+    <div class="bar" id="bar"><div id="barFill"></div></div>
+    <div class="status" id="status" style="margin-top:8px" data-i18n="st_loading">加载中…</div>
+    <div class="note" id="uiNote" style="display:none"></div>
+    <div class="note" id="buildNote" style="display:none"></div>
+    <div class="err" id="sysErr" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input id="q" type="text" list="recent" autofocus data-i18n-ph="ph_query" onkeydown="qKey(event)">
+      <datalist id="recent"></datalist>
+      <span class="toggle">
+        <button id="mInstant" class="on" onclick="setMode('instant')" data-i18n="mode_instant" data-i18n-title="ttl_instant">全盘语义</button>
+        <button id="mName" onclick="setMode('filename')" data-i18n="mode_filename" data-i18n-title="ttl_filename">文件名</button>
+        <button id="mSem" onclick="setMode('semantic')" data-i18n="mode_semantic" data-i18n-title="ttl_semantic">深度语义</button>
+      </span>
+      <select id="scope" data-i18n-title="ttl_scope"><option value="">全盘</option></select>
+      <select id="topk" data-i18n-title="ttl_topk">
+        <option value="10" data-i18n="topk_10">10 条</option>
+        <option value="20" selected data-i18n="topk_20">20 条</option>
+        <option value="50" data-i18n="topk_50">50 条</option>
+      </select>
+      <button class="primary" onclick="doSearch()" data-i18n="btn_search">搜索</button>
+    </div>
+    <div class="note" style="margin-top:6px" data-i18n-html="kbd_hint"></div>
+    <div class="err" id="searchErr"></div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+const I18N = {
+  zh: {
+    app_title:"本地语义搜索",
+    app_sub:"🔒 全部在本机运行，不联网，文件内容不会离开你的电脑。",
+    ctrl_title:"掌控模式 · 深度索引", ctrl_badge:"独家",
+    ctrl_note:'对你选定的范围建立我们自己的深度语义索引（质量最好，能搜到零字面重合的改写）。<b>首次全量扫描，之后只扫变化（diff）</b>，并后台自动维护。「全盘语义 / 文件名」开箱即用，不需要这一步。',
+    ph_folder:"选择要掌控的文件夹，例如 C:\\Users\\你\\Documents",
+    btn_browse:"浏览…", btn_add:"扫描并掌控", btn_cancel:"取消",
+    lbl_wholedisk:"全盘扫描：", btn_rescan:"重新扫描（仅变化）", ttl_rescan:"只重新扫描有变化的文件",
+    st_loading:"加载中…",
+    ph_query:"输入要找的内容…",
+    mode_instant:"全盘语义", ttl_instant:"骑 Windows 内容索引，全盘语义搜，免建索引",
+    ttl_instant_off:"此电脑的 Windows 搜索服务未开启，此模式不可用",
+    mode_filename:"文件名", ttl_filename:"Everything 文件名秒搜，全盘",
+    mode_semantic:"深度语义", ttl_semantic:"对已添加文件夹的深度语义索引，质量最好",
+    scope_all:"全盘", ttl_scope:"搜索范围（全盘语义 / 文件名模式生效）",
+    topk_10:"10 条", topk_20:"20 条", topk_50:"50 条", ttl_topk:"返回结果数量",
+    btn_search:"搜索",
+    kbd_hint:'按 <span class="kbd">Enter</span> 搜索 · <span class="kbd">↓</span><span class="kbd">↑</span> 在结果间移动 · <span class="kbd">Enter</span> 打开选中文件',
+    ttl_drive:"深度索引整个 {d}（自动排除系统/垃圾目录）",
+    ttl_chip_remove:"移除掌控（同时清掉它的索引条目）",
+    nt_need_folder:"请先填写或选择一个文件夹",
+    nt_removed:"已移除掌控：{path}", nt_drive_started:"已开始扫描 {d}（自动跳过系统/垃圾目录，可随时点「取消」）",
+    nt_rescan_started:"已开始重新扫描（只扫有变化的文件）",
+    nt_ws_switch:"Windows 搜索服务未开启，已自动切到「文件名」模式",
+    st_building:"正在建立索引… {done}/{total} 个文件{file}",
+    st_ready:"已索引 {files} 个文件 / {chunks} 个文本块 · {model} · {folders}",
+    st_folders_n:"掌控 {n} 个文件夹", st_no_folders:"尚未掌控文件夹",
+    st_model:"模型 {name}", st_model_loading:"AI 模型加载中（首次约 10-20 秒）…",
+    st_disconnected:"无法连接后端",
+    bn_cancelled:"已取消建库。", bn_skipped:"已跳过 {n} 个无法读取的文件（其余正常索引）。",
+    st_searching:"搜索中…", st_search_wait:"AI 模型首次加载中（约 10-20 秒），随后自动出结果…",
+    em_none:"没有找到结果。",
+    em_tip_instant:" 「全盘语义」靠 Windows 搜索找候选词——换个含相同词的说法，或切「文件名」。",
+    em_tip_filename:" 试试切到「全盘语义」按内容/意思查找。",
+    em_tip_semantic:" 换个说法，或确认这个文件夹已经建好索引。",
+    res_score:"匹配度 {score}", res_modified:"修改于 {mtime}",
+    btn_open:"打开文件", btn_reveal:"打开所在文件夹",
+    err_bad_folder:"这不是一个有效的文件夹。", err_busy:"正在扫描中，请稍候（或先取消）。",
+    err_not_controlled:"不在掌控列表中。", err_no_folders:"还没有掌控任何文件夹。",
+    err_no_everything:"文件名搜索不可用（未找到 Everything 的 es.exe）。",
+    err_ws_down:"此电脑的 Windows 搜索服务未开启，「全盘语义」无法工作——请改用「文件名」或「深度语义」。",
+    err_no_hits:"没有内容命中，换个说法试试（或改用「深度语义」/「文件名」）。",
+    err_build_failed:"建立索引失败。", err_no_file:"文件已不存在。",
+    err_idx_version:"索引版本已升级，需要重新扫描一次（旧索引已移开）。",
+    err_idx_corrupt:"检测到索引文件损坏（可能因断电/强制关机），需要重新扫描。",
+    err_idx_load:"索引加载失败，需要重新扫描。",
+    generic_fail:"操作失败", open_fail:"无法打开",
+  },
+  en: {
+    app_title:"Local Semantic Search",
+    app_sub:"🔒 Runs entirely on your machine. No network. Your files never leave your computer.",
+    ctrl_title:"Control Mode · Deep Index", ctrl_badge:"exclusive",
+    ctrl_note:'Build our own deep semantic index over the folders you choose (best quality — finds rewrites with zero literal overlap). <b>Full scan the first time, then only changed files (diff)</b>, maintained automatically in the background. "Whole-disk Semantic / Filename" work out of the box and don\'t need this.',
+    ph_folder:"Pick a folder to control, e.g. C:\\Users\\you\\Documents",
+    btn_browse:"Browse…", btn_add:"Scan & Control", btn_cancel:"Cancel",
+    lbl_wholedisk:"Whole-disk scan:", btn_rescan:"Rescan (changes only)", ttl_rescan:"Re-scan only the files that changed",
+    st_loading:"Loading…",
+    ph_query:"Type what you're looking for…",
+    mode_instant:"Whole-disk Semantic", ttl_instant:"Rides the Windows content index — semantic search across all drives, no indexing needed",
+    ttl_instant_off:"The Windows Search service is off on this PC, so this mode is unavailable",
+    mode_filename:"Filename", ttl_filename:"Instant whole-disk filename search via Everything",
+    mode_semantic:"Deep Semantic", ttl_semantic:"Deep semantic index over your added folders — best quality",
+    scope_all:"All drives", ttl_scope:"Search scope (applies to Whole-disk Semantic / Filename)",
+    topk_10:"10", topk_20:"20", topk_50:"50", ttl_topk:"Number of results",
+    btn_search:"Search",
+    kbd_hint:'Press <span class="kbd">Enter</span> to search · <span class="kbd">↓</span><span class="kbd">↑</span> to move between results · <span class="kbd">Enter</span> to open the selected file',
+    ttl_drive:"Deep-index all of {d} (system/junk folders auto-excluded)",
+    ttl_chip_remove:"Stop controlling (also removes its index entries)",
+    nt_need_folder:"Please type or pick a folder first",
+    nt_removed:"Removed from control: {path}", nt_drive_started:"Started scanning {d} (system/junk folders skipped; you can Cancel anytime)",
+    nt_rescan_started:"Started rescanning (only changed files)",
+    nt_ws_switch:"Windows Search service is off — switched to Filename mode automatically",
+    st_building:"Indexing… {done}/{total} files{file}",
+    st_ready:"{files} files / {chunks} text chunks indexed · {model} · {folders}",
+    st_folders_n:"{n} folder(s) controlled", st_no_folders:"no folders controlled yet",
+    st_model:"model {name}", st_model_loading:"loading AI model (first time ~10-20s)…",
+    st_disconnected:"Cannot reach the backend",
+    bn_cancelled:"Indexing cancelled. ", bn_skipped:"Skipped {n} unreadable file(s); the rest were indexed.",
+    st_searching:"Searching…", st_search_wait:"Loading the AI model (~10-20s), results will appear automatically…",
+    em_none:"No results.",
+    em_tip_instant:" Whole-disk Semantic finds candidates via Windows Search — try wording that shares a word, or switch to Filename.",
+    em_tip_filename:" Try Whole-disk Semantic to search by content / meaning.",
+    em_tip_semantic:" Try different wording, or make sure this folder has been indexed.",
+    res_score:"score {score}", res_modified:"modified {mtime}",
+    btn_open:"Open file", btn_reveal:"Open containing folder",
+    err_bad_folder:"That is not a valid folder.", err_busy:"Indexing in progress, please wait (or cancel first).",
+    err_not_controlled:"Not in the controlled list.", err_no_folders:"No folders are being controlled yet.",
+    err_no_everything:"Filename search unavailable (Everything's es.exe was not found).",
+    err_ws_down:"The Windows Search service is off on this PC, so Whole-disk Semantic can't work — use Filename or Deep Semantic instead.",
+    err_no_hits:"No content matches. Try different wording (or use Deep Semantic / Filename).",
+    err_build_failed:"Indexing failed.", err_no_file:"File no longer exists.",
+    err_idx_version:"The index format was upgraded — one rescan is needed (the old index was moved aside).",
+    err_idx_corrupt:"The index files look damaged (possibly from a power loss / forced shutdown) — a rescan is needed.",
+    err_idx_load:"Failed to load the index — a rescan is needed.",
+    generic_fail:"Operation failed", open_fail:"Cannot open",
+  },
+};
+let LANG = localStorage.getItem('ls_lang') === 'en' ? 'en' : 'zh';
+let MODE = "instant";
+let WS_OK = null;
+let MODEL_READY = false;
+let LAST_QUERY = "";
+let SEQ = 0;
+let SEL = -1;
+let LAST_RESULTS = null;
+let LAST_MODE = "instant";
+
+function t(key, p){
+  let s = (I18N[LANG] && I18N[LANG][key]);
+  if(s == null) s = I18N.zh[key];
+  if(s == null) s = key;
+  if(p) for(const k in p) s = s.split('{'+k+'}').join(p[k]);
+  return s;
+}
+function emsg(r){ return (r && r.code) ? t('err_'+r.code) : ((r && r.error) || t('generic_fail')); }
+function applyLang(){
+  document.documentElement.lang = LANG==='zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{ el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = t(el.dataset.i18nTitle); });
+  document.getElementById('langBtn').textContent = LANG==='zh' ? 'EN' : '中';
+}
+function toggleLang(){
+  LANG = LANG==='zh' ? 'en' : 'zh';
+  localStorage.setItem('ls_lang', LANG);
+  applyLang();
+  loadDrives();
+  poll();
+  if(LAST_RESULTS !== null) renderResults(LAST_RESULTS, LAST_MODE);
+}
+function setMode(m){ MODE=m;
+  document.getElementById('mInstant').classList.toggle('on', m==='instant');
+  document.getElementById('mName').classList.toggle('on', m==='filename');
+  document.getElementById('mSem').classList.toggle('on', m==='semantic');
+}
+function notice(msg, warn){
+  const n=document.getElementById('uiNote');
+  n.textContent=msg; n.className='note'+(warn?' warn':''); n.style.display='block';
+  clearTimeout(notice._t); notice._t=setTimeout(()=>{n.style.display='none';}, 6000);
+}
+async function api(path, body){
+  const r = await fetch(path, {method: body?'POST':'GET',
+    headers:{'Content-Type':'application/json'}, body: body?JSON.stringify(body):undefined});
+  return r.json();
+}
+async function pickFolder(){
+  const r = await api('/api/pick_folder', {});
+  if(r.path) document.getElementById('folder').value = r.path;
+}
+async function addFolder(){
+  const path = document.getElementById('folder').value.trim();
+  if(!path){ notice(t('nt_need_folder'), true); return; }
+  const r = await api('/api/add_folder', {path});
+  if(!r.ok){ notice(emsg(r), true); }
+}
+async function removeFolder(path){
+  const r = await api('/api/remove_folder', {path});
+  if(r.ok){ notice(t('nt_removed', {path})); poll(); }
+  else notice(emsg(r), true);
+}
+async function cancelBuild(){ await api('/api/cancel_build', {}); }
+async function loadDrives(){
+  const r = await api('/api/drives');
+  const drives = r.drives||[];
+  document.getElementById('drives').innerHTML = drives.map(d=>
+    `<button data-drive="${escapeHtml(d)}" title="${escapeHtml(t('ttl_drive', {d}))}">${escapeHtml(d)}</button>`
+  ).join(' ');
+  const scope=document.getElementById('scope');
+  const cur=scope.value;
+  scope.innerHTML = `<option value="">${escapeHtml(t('scope_all'))}</option>` + drives.map(d=>
+    `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  scope.value=cur;
+}
+document.getElementById('drives').addEventListener('click', ev=>{
+  const b = ev.target.closest('button[data-drive]');
+  if(b) addDrive(b.dataset.drive);
+});
+async function addDrive(d){
+  const r = await api('/api/add_folder', {path:d});
+  if(r.ok) notice(t('nt_drive_started', {d}));
+  else notice(emsg(r), true);
+}
+async function rescan(){
+  const r = await api('/api/rescan', {});
+  if(r.ok) notice(t('nt_rescan_started'));
+  else notice(emsg(r), true);
+}
+
+async function poll(){
+  try{
+    const s = await api('/api/status');
+    WS_OK = s.ws_available; MODEL_READY = !!s.model_ready;
+    const bar=document.getElementById('bar'), fill=document.getElementById('barFill');
+    const cancel=document.getElementById('cancelBtn'), note=document.getElementById('buildNote');
+    const mi=document.getElementById('mInstant');
+    if(WS_OK===false){
+      mi.disabled=true; mi.title=t('ttl_instant_off');
+      if(MODE==='instant'){ setMode('filename'); notice(t('nt_ws_switch'), true); }
+    }
+    const codes = [s.index_error, s.last_error].filter(Boolean).map(c=>t('err_'+c));
+    let sysErr = codes.join(' ');
+    if(s.last_error && s.last_error_detail) sysErr += ' ('+s.last_error_detail+')';
+    document.getElementById('sysErr').textContent = sysErr;
+    const chipsKey = JSON.stringify(s.folders||[]) + '|' + LANG;
+    if(chipsKey !== poll._chipsKey){
+      poll._chipsKey = chipsKey;
+      document.getElementById('folderChips').innerHTML = (s.folders||[]).map(f=>
+        `<span class="chip" data-path="${escapeHtml(f)}" title="${escapeHtml(f)}"><span>${escapeHtml(f)}</span>`+
+        `<button data-act="rmfolder" title="${escapeHtml(t('ttl_chip_remove'))}">✕</button></span>`
+      ).join('');
+    }
+    if(s.building){
+      bar.style.display='block'; cancel.style.display='inline-block';
+      const p=s.progress, pct=p.total? Math.round(100*p.done/p.total):0;
+      fill.style.width=pct+'%';
+      document.getElementById('status').textContent=
+        t('st_building', {done:p.done, total:p.total, file:(p.file? '（'+p.file+'）':'')});
+      document.getElementById('addBtn').disabled=true;
+      document.getElementById('rescanBtn').disabled=true;
+    }else{
+      bar.style.display='none'; cancel.style.display='none';
+      document.getElementById('addBtn').disabled=false;
+      document.getElementById('rescanBtn').disabled=false;
+      const folders = s.folders.length? t('st_folders_n', {n:s.folders.length}) : t('st_no_folders');
+      const model = MODEL_READY? t('st_model', {name:s.model.split('/').pop().split('\\').pop()})
+                               : t('st_model_loading');
+      document.getElementById('status').textContent=
+        t('st_ready', {files:s.files, chunks:s.chunks, model, folders});
+      const lb=s.last_build;
+      if(lb && (lb.failed>0 || lb.cancelled)){
+        note.style.display='block';
+        note.textContent = (lb.cancelled? t('bn_cancelled') : '')
+          + (lb.failed>0? t('bn_skipped', {n:lb.failed}) : '');
+      } else { note.style.display='none'; }
+    }
+  }catch(e){ document.getElementById('status').textContent=t('st_disconnected'); }
+}
+
+function highlight(text, terms){
+  let h = escapeHtml(text);
+  if(terms && terms.length){
+    const esc = terms.filter(x=>x).map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+    if(esc.length){
+      try{ h = h.replace(new RegExp('('+esc.join('|')+')','gi'), '<mark>$1</mark>'); }catch(e){}
+    }
+  }
+  return h;
+}
+function qKey(ev){
+  if(ev.key==='Enter'){
+    if(SEL>=0){ openSelected(); }
+    else doSearch();
+  }
+  else if(ev.key==='ArrowDown'){
+    const q=document.getElementById('q').value.trim();
+    if(q && q===LAST_QUERY && resultCount()>0){
+      ev.preventDefault(); ev.target.blur(); moveSel(1);
+    }
+  }
+  else if(SEL>=0){ clearSel(); }
+}
+function clearSel(){
+  SEL=-1;
+  document.querySelectorAll('#results .res.selected').forEach(el=>el.classList.remove('selected'));
+}
+function openSelected(){
+  const el=document.querySelectorAll('#results .res')[SEL];
+  if(el) openPath(el.dataset.path, false);
+}
+function resultCount(){ return document.querySelectorAll('#results .res').length; }
+function moveSel(delta){
+  const n=resultCount(); if(!n) return;
+  SEL = SEL<0? (delta>0?0:n-1) : Math.min(n-1, Math.max(0, SEL+delta));
+  document.querySelectorAll('#results .res').forEach((el,i)=>{
+    el.classList.toggle('selected', i===SEL);
+    if(i===SEL) el.scrollIntoView({block:'nearest'});
+  });
+}
+document.addEventListener('keydown', ev=>{
+  if(ev.target && (ev.target.tagName==='INPUT' || ev.target.tagName==='SELECT'
+                   || ev.target.tagName==='BUTTON' || ev.target.tagName==='TEXTAREA')) return;
+  if(ev.key==='ArrowDown'){ ev.preventDefault(); moveSel(1); }
+  else if(ev.key==='ArrowUp'){ ev.preventDefault(); moveSel(-1); }
+  else if(ev.key==='Enter' && SEL>=0){ openSelected(); }
+  else if(ev.key==='/'){ ev.preventDefault(); document.getElementById('q').focus(); }
+});
+document.getElementById('folderChips').addEventListener('click', ev=>{
+  const b = ev.target.closest('button[data-act="rmfolder"]');
+  if(b) removeFolder(b.closest('.chip').dataset.path);
+});
+document.getElementById('results').addEventListener('click', ev=>{
+  const b = ev.target.closest('button[data-act]');
+  if(!b) return;
+  const path = b.closest('.res').dataset.path;
+  if(b.dataset.act==='open') openPath(path, false);
+  else if(b.dataset.act==='reveal') openPath(path, true);
+});
+function renderResults(items, mode){
+  const box=document.getElementById('results');
+  SEL=-1;
+  if(!items.length){
+    const tip = mode==='instant' ? t('em_tip_instant')
+              : mode==='filename' ? t('em_tip_filename') : t('em_tip_semantic');
+    box.innerHTML = '<div class="empty">' + t('em_none') + tip + '</div>';
+    return;
+  }
+  box.innerHTML = items.map(it=>{
+    const score = it.score!=null? `<span class="score">${escapeHtml(t('res_score', {score:it.score}))}</span>`:'';
+    const meta = [
+      it.ext? `<span class="badge">${escapeHtml(it.ext)}</span>`:'',
+      it.size? `${escapeHtml(it.size)}`:'',
+      it.mtime? escapeHtml(t('res_modified', {mtime:it.mtime})):''
+    ].filter(Boolean).join('<span style="opacity:.5">·</span>');
+    const snip = it.snippet? `<div class="snip">${highlight(it.snippet, it.terms)}</div>`:'';
+    return `<div class="res" data-path="${escapeHtml(it.path)}">${score}<div class="name">${escapeHtml(it.name)}</div>
+      <div class="meta">${meta}</div>
+      <div class="path">${escapeHtml(it.path)}</div>${snip}
+      <div class="acts">
+        <button data-act="open">${escapeHtml(t('btn_open'))}</button>
+        <button data-act="reveal">${escapeHtml(t('btn_reveal'))}</button>
+      </div></div>`;
+  }).join('');
+}
+async function doSearch(){
+  const q=document.getElementById('q').value.trim();
+  const box=document.getElementById('results'); const err=document.getElementById('searchErr');
+  err.textContent='';
+  if(!q){ box.innerHTML=''; LAST_RESULTS=null; return; }
+  addRecent(q);
+  LAST_QUERY=q; SEL=-1;
+  const mode=MODE;
+  const my = ++SEQ;
+  const k = parseInt(document.getElementById('topk').value, 10) || 20;
+  const scope = document.getElementById('scope').value || undefined;
+  box.innerHTML = '<div class="empty">'+
+    ((mode!=='filename' && !MODEL_READY)? t('st_search_wait') : t('st_searching'))+'</div>';
+  const r = await api('/api/search', {query:q, mode, top_k:k, scope});
+  if(my!==SEQ) return;
+  err.textContent = r.error? emsg(r) : '';
+  LAST_RESULTS = r.results||[]; LAST_MODE = mode;
+  renderResults(LAST_RESULTS, mode);
+}
+async function openPath(path, reveal){
+  const r = await api('/api/open', {path, reveal});
+  if(!r.ok) notice(emsg(r) || t('open_fail'), true);
+}
+function addRecent(q){
+  let r = []; try{ r = JSON.parse(localStorage.getItem('ls_recent')||'[]'); }catch(e){}
+  r = [q, ...r.filter(x=>x!==q)].slice(0,8);
+  localStorage.setItem('ls_recent', JSON.stringify(r));
+  document.getElementById('recent').innerHTML = r.map(x=>`<option value="${escapeHtml(x)}">`).join('');
+}
+function escapeHtml(s){ return (''+(s==null?'':s)).replace(/[&<>"']/g, c=>(
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+try{ const rec=JSON.parse(localStorage.getItem('ls_recent')||'[]');
+  document.getElementById('recent').innerHTML = rec.map(x=>`<option value="${escapeHtml(x)}">`).join(''); }catch(e){}
+applyLang();
+loadDrives();
+setInterval(poll, 1000); poll();
+</script>
+</body>
+</html>

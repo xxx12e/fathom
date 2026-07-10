@@ -1,0 +1,58 @@
+"""Engine configuration; factory defaults are the brick-1..4 validated config."""
+from dataclasses import dataclass, field
+
+from . import resources
+
+
+@dataclass
+class Config:
+    model_name: str = field(default_factory=resources.model_path)
+    query_prefix: str = "Represent this sentence for searching relevant passages: "
+    doc_prefix: str = ""
+    device: str = "auto"
+    embed_batch_size: int = 128
+
+    alpha: float = 0.7
+    fusion_fetch: int = 100
+    instant_candidates: int = 120
+
+    flush_debounce_s: float = 1.0
+    save_interval_s: float = 120.0
+    instant_cache_entries: int = 20000
+
+    snippet_sentence_chars: int = 300
+    snippet_sents_per_hit: int = 16
+    instant_deep_snippet: bool = True
+    instant_snippet_max_kb: int = 64
+
+    chunk_max_words: int = 150
+    chunk_overlap_sentences: int = 1
+
+    supported_ext: tuple = (".txt", ".md", ".pdf", ".docx")
+    change_detection: str = "mtime_size"
+    max_file_mb: float = 50.0
+
+    exclude_dirs: frozenset = frozenset({
+        "windows", "program files", "program files (x86)", "programdata",
+        "$recycle.bin", "system volume information", "$winreagent", "recovery",
+        "appdata", "application data", "node_modules", "site-packages",
+        "__pycache__", ".git", ".svn", ".hg", ".venv", "venv", "env", ".env",
+        ".cache", ".gradle", ".m2", ".nuget", ".cargo", "build", "dist",
+        "obj", "bin", ".idea", ".vs", ".vscode", "temp", "tmp", "cache",
+        "msys64", "anaconda3", "miniconda3",
+    })
+    exclude_hidden: bool = True
+
+    es_exe: str = field(default_factory=lambda: str(resources.es_exe()))
+    es_timeout_s: float = 5.0
+
+    watch_debounce_s: float = 0.6
+
+    def resolved_device(self):
+        if self.device != "auto":
+            return self.device
+        try:
+            import torch
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            return "cpu"

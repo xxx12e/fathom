@@ -1,0 +1,53 @@
+# --- third-party assets NOT ours to redistribute ---
+# Everything's CLI (voidtools) — users download it themselves; BEIR eval datasets
+tools/
+beir_data/
+
+# --- generated indexes / runtime state / scratch ---
+_demo/
+_demo_ui/
+_control_tmp/
+_instant_tmp/
+*.faiss
+*.pkl
+*.log
+.localsearch_index/
+folders.json
+
+# --- benchmarks + internal dev notes (not part of the product release) ---
+bench.py
+bench2.py
+bench3.py
+bench4.py
+results.csv
+results_quality.csv
+results_hybrid.csv
+README2.md
+README3.md
+README4.md
+优化清单.md
+使用说明.txt
+
+# --- models (bundled at package time, never in git) ---
+models/
+*.safetensors
+
+# --- build / packaging artifacts ---
+build/
+dist/
+work/
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# --- os / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
