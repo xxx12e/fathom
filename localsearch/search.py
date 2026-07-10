@@ -23,6 +23,9 @@ class Hit:
     char_end: int
     snippet: str = ""
     terms: list = field(default_factory=list)
+    cid: int = -1                 # winning chunk id (deep mode) -> vec reconstruct
+    pscore: float = None          # personalized score (set by Personalizer.rerank)
+    personal: bool = False        # True if history boosted this hit
 
 
 def _minmax(pairs):
@@ -95,7 +98,7 @@ def retrieve(index, qvec, qtokens, top_k, alpha, fetch):
         p = meta["path"]
         if p not in best_per_file:
             best_per_file[p] = Hit(p, sc, meta["text"], meta["start"], meta["end"],
-                                   terms=qtokens)
+                                   terms=qtokens, cid=cid)
         if len(best_per_file) >= top_k:
             break
     return list(best_per_file.values())

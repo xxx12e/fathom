@@ -51,6 +51,10 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 
 Plus: **bilingual UI (中文 / English, one‑click toggle)**, keyboard‑driven (`Enter` to search, `↑/↓` to move, `Enter` to open), live‑highlighted snippets that show *why* a file matched, and a portable build that runs on any Windows PC with **no Python install**.
 
+## It learns *you* — on your machine
+
+The more you use Fathom, the better it fits you: the **files and folders you actually open float toward the top** for similar searches, weighted toward your recent habits. It's a gentle re‑rank — a fresh query is **never** hijacked, and it **never buries the more relevant result**. And it's personalization with nothing to give up: it learns **only from your own clicks, on your own disk, and never trains the model or sends anything anywhere.** Toggle it off or hit **Forget me** whenever you like.
+
 ## The privacy stance (the whole point)
 
 - **Fully local.** The embedding model is bundled. Unplug the network and everything still works.
@@ -102,9 +106,10 @@ localsearch/          the engine + local web UI (this is the product)
   ├─ winsearch.py     the "instant whole‑disk" breakthrough (Windows content index)
   ├─ search.py        hybrid retrieval + best‑sentence snippets
   ├─ watcher.py       debounced background re‑indexing
+  ├─ personalize.py   local, training‑free re‑rank from what you open
   ├─ app.py           Flask backend (127.0.0.1 only) + JSON API
   └─ web/index.html   single‑page UI, bilingual, zero build step
-demo_*.py             runnable end‑to‑end examples
+demo_*.py             runnable end‑to‑end examples (incl. demo_personalize.py)
 run.bat               double‑click launcher
 ```
 

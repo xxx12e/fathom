@@ -28,6 +28,15 @@ class Config:
     chunk_max_words: int = 150
     chunk_overlap_sentences: int = 1
 
+    # personalization: local + training-free (learns from what you OPEN, never
+    # trains the model). Base relevance still dominates; this only nudges order.
+    personalize: bool = True
+    pers_lambda: float = 0.25         # personal prior weight vs base relevance
+    pers_w_click: float = 0.5         # sub-weights within the personal prior
+    pers_w_folder: float = 0.2
+    pers_w_interest: float = 0.3
+    pers_decay: float = 0.9           # older opens decay -> recency-weighted profile
+
     supported_ext: tuple = (".txt", ".md", ".pdf", ".docx")
     change_detection: str = "mtime_size"
     max_file_mb: float = 50.0

@@ -49,6 +49,7 @@ dropped. A fresh `SearchEngine(same_dir)` loads from disk — no rebuild.
 | `search.py` | hybrid fusion → files + best‑sentence snippets; `es.exe` filename search |
 | `winsearch.py` | Windows Search content index (`Search.CollatorDSO`) for instant global mode |
 | `watcher.py` | single debounced scheduler thread → incremental updates |
+| `personalize.py` | local, training-free re-rank: decayed open-counts + folder + interest vector |
 | `engine.py` | `SearchEngine`: orchestrates build/load/search/watch; lock guards mutation only |
 
 ## Robustness & performance
@@ -65,6 +66,16 @@ dropped. A fresh `SearchEngine(same_dir)` loads from disk — no rebuild.
   instant‑mode candidate embeddings.
 - Every per‑file failure (corrupt PDF, locked handle, bad encoding, oversized) is logged and
   skipped — never crashes a build or the watcher. Logs → `<index_dir>/engine.log`.
+
+## Personalization (local, training-free)
+
+Opening a result (`/api/open` → `engine.record_open`) updates a per-user profile in
+`<index_dir>/personal.json`: decayed open-counts per file and folder, plus a decayed
+interest centroid of the embeddings you open. Searches re-rank by blending the base score
+with those priors (`Config.pers_*`), so **files and folders you actually open float up** —
+recency-weighted. The blend keeps base relevance dominant by design (a fresh query is never
+hijacked); the model is **never trained**. Toggle via `/api/personalize`, wipe via
+`/api/forget`. See [`../demo_personalize.py`](../demo_personalize.py).
 
 ## Dependencies
 

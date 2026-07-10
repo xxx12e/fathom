@@ -15,6 +15,7 @@ from .chunker import chunk_text, tokenize
 from .embedder import Embedder
 from .index import DualIndex, IndexVersionError, IndexCorruptError
 from .search import retrieve, make_snippets, filename_search, Hit
+from .personalize import Personalizer, _norm
 
 log = logging.getLogger("localsearch")
 
@@ -51,6 +52,9 @@ class SearchEngine:
         self._closing = False
         self._instant_cache = OrderedDict()
         self._cache_lock = threading.Lock()
+        self.personalizer = Personalizer(self.index_dir, self.cfg)
+        self._last_shown = OrderedDict()  # normcased path -> vec (recent shown, for record_open)
+        self._shown_lock = threading.Lock()
         self.load_error = ""
         self.index = None
         if DualIndex.exists(self.index_dir):
@@ -464,13 +468,18 @@ class SearchEngine:
             return []
         qvec = self.embedder.embed_query(query)
         qtokens = tokenize(query)
+        # pull a wider pool when personalizing, so the personal prior can lift a
+        # genuinely-relevant file the base score ranked just below the cut.
+        want = top_k * 3 if self.personalizer.enabled else top_k
         with self._lock:
             if self.index is None or self.index.dense.ntotal == 0:
                 return []
             self.index.ensure_bm25()
-            hits = retrieve(self.index, qvec, qtokens, top_k,
+            hits = retrieve(self.index, qvec, qtokens, want,
                             self.cfg.alpha, self.cfg.fusion_fetch)
-
+            vecs = ({h.path: self._reconstruct(h.cid) for h in hits}
+                    if self.personalizer.enabled else {})
+        hits = self._personalize(hits, vecs, top_k)
         make_snippets(hits, qvec, self.embedder,
                       max_sent_chars=self.cfg.snippet_sentence_chars,
                       max_sents=self.cfg.snippet_sents_per_hit)
@@ -481,6 +490,46 @@ class SearchEngine:
         if scope:
             q = f'"{scope}" {query}'
         return filename_search(self.cfg.es_exe, q, limit, self.cfg.es_timeout_s)
+
+    # ---- personalization (local, training-free) ----
+    def _reconstruct(self, cid):
+        """Unit embedding of a chunk id from the FAISS index (fp16-dequantized)."""
+        if cid is None or cid < 0:
+            return None
+        try:
+            v = np.asarray(self.index.dense.reconstruct(int(cid)), dtype=np.float32)
+            n = np.linalg.norm(v)
+            return v / n if n > 0 else None
+        except Exception:
+            return None
+
+    def _personalize(self, hits, vecs, top_k):
+        if self.personalizer.enabled:
+            hits = self.personalizer.rerank(hits, vecs)
+        hits = hits[:top_k]
+        # accumulate recent shown vecs (bounded) so a click still finds its vec
+        # even after another search ran (a single overwritten field would lose it)
+        with self._shown_lock:
+            for h in hits:
+                v = vecs.get(h.path)
+                if v is not None:
+                    k = _norm(h.path)
+                    self._last_shown[k] = v
+                    self._last_shown.move_to_end(k)
+            while len(self._last_shown) > 256:
+                self._last_shown.popitem(last=False)
+        return hits
+
+    def record_open(self, path):
+        """The user opened a result -> update the local behavioral profile."""
+        if not self.personalizer.enabled:
+            return
+        with self._shown_lock:
+            vec = self._last_shown.get(_norm(path))
+        try:
+            self.personalizer.record_open(path, vec)
+        except Exception as e:
+            log.debug("record_open failed: %s", e)
 
     def _embed_candidates(self, cands):
         """Embed candidate snippets through an LRU cache (locked; embed runs outside)."""
@@ -515,14 +564,17 @@ class SearchEngine:
         qvec = self.embedder.embed_query(query)
         texts, cvecs = self._embed_candidates(cands)
         sims = cvecs @ qvec[0]
-        order = np.argsort(-sims)[:top_k]
+        want = top_k * 3 if self.personalizer.enabled else top_k
+        order = np.argsort(-sims)[:max(top_k, want)]
         qtokens = tokenize(query)
-        hits = []
+        hits, vecs = [], {}
         for i in order:
             path, snip = cands[int(i)]
             text = texts[int(i)]
             hits.append(Hit(path=path, score=float(sims[int(i)]), chunk_text=text,
                             char_start=0, char_end=0, snippet=text[:260], terms=qtokens))
+            vecs[path] = cvecs[int(i)]
+        hits = self._personalize(hits, vecs, top_k)
         if self.cfg.instant_deep_snippet:
             self._deepen_instant_snippets(hits, qvec)
         return hits

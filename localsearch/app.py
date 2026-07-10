@@ -76,7 +76,7 @@ def _human_size(b):
         b /= 1024
 
 
-def _result(path, snippet, score, terms):
+def _result(path, snippet, score, terms, personal=False):
     """Build a result row with current metadata; None if the file is gone."""
     import time as _t
     try:
@@ -87,7 +87,7 @@ def _result(path, snippet, score, terms):
     size = _human_size(st.st_size)
     mtime = _t.strftime("%Y-%m-%d %H:%M", _t.localtime(st.st_mtime))
     return dict(name=os.path.basename(path), path=path, snippet=snippet, score=score,
-                terms=terms, ext=ext, size=size, mtime=mtime)
+                terms=terms, ext=ext, size=size, mtime=mtime, personal=personal)
 
 
 def create_app(index_dir, config=None):
@@ -119,11 +119,25 @@ def create_app(index_dir, config=None):
                        building=state.building, progress=state.progress, folders=state.folders,
                        last_build=state.last_build, ws_available=ws_available,
                        model_ready=state.model_ready, last_error=state.last_error,
-                       last_error_detail=state.last_error_detail, index_error=engine.load_error)
+                       last_error_detail=state.last_error_detail, index_error=engine.load_error,
+                       personalize=engine.personalizer.stats())
 
     @app.post("/api/cancel_build")
     def cancel_build():
         state.cancel = True
+        return jsonify(ok=True)
+
+    @app.post("/api/personalize")
+    def personalize():
+        # toggle local, training-free personalization on/off
+        on = bool((request.get_json(silent=True) or {}).get("enabled", True))
+        engine.personalizer.set_enabled(on)
+        return jsonify(ok=True, enabled=engine.personalizer.enabled)
+
+    @app.post("/api/forget")
+    def forget():
+        # wipe the local behavioral profile (opens + interest vector)
+        engine.personalizer.reset()
         return jsonify(ok=True)
 
     @app.post("/api/pick_folder")
@@ -237,11 +251,12 @@ def create_app(index_dir, config=None):
             hits = engine.search_instant_global(q, top_k=k, scope=scope)
             if not hits:
                 return jsonify(results=[], code="no_hits", error="No content matches.")
-            res = [_result(h.path, snippet=h.snippet, score=round(h.score, 3), terms=h.terms) for h in hits]
+            res = [_result(h.path, snippet=h.snippet, score=round(h.score, 3),
+                           terms=h.terms, personal=h.personal) for h in hits]
         else:
             hits = engine.search_semantic(q, top_k=k)
             res = [_result(h.path, snippet=h.snippet or _snippet(h.chunk_text),
-                           score=round(h.score, 3), terms=h.terms) for h in hits]
+                           score=round(h.score, 3), terms=h.terms, personal=h.personal) for h in hits]
         return jsonify(results=[r for r in res if r is not None])
 
     @app.post("/api/open")
@@ -251,6 +266,7 @@ def create_app(index_dir, config=None):
         reveal = bool(d.get("reveal", False))
         if not os.path.exists(path):
             return jsonify(ok=False, code="no_file", error="File no longer exists."), 404
+        engine.record_open(path)        # local behavioral profile (training-free)
         if os.environ.get("LOCALSEARCH_NO_LAUNCH"):
             return jsonify(ok=True, launched=False)
         try:
