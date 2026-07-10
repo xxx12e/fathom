@@ -39,7 +39,7 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 | 🔒 **0 bytes** leave your machine | fully offline · binds `127.0.0.1` · no account, no telemetry |
 | 📄 **txt · md · pdf · docx** · **中文 & English** | bilingual UI, one‑click 中/EN toggle |
 
-<sub>Speeds measured on a modern GPU (embedding) + FAISS; CPU stays well under the 100 ms interactive bar. Model: off‑the‑shelf `BAAI/bge-base-en-v1.5` — see [How it works](#how-it-works).</sub>
+<sub>Speeds measured on a modern GPU (embedding) + FAISS; CPU stays well under the 100 ms interactive bar.</sub>
 
 ## Three ways to search, one box
 
@@ -81,17 +81,17 @@ or just double‑click **`run.bat`** (Windows).
    (Windows Search   →     (Everything‑style,          (own FAISS index of
     content index)          MFT filename)               your chosen folders)
         │                                                    │
-        └──────────────►  neural re‑rank (bge embeddings)  ◄─┘
+        └──────────────►  neural re‑rank · Fathom semantic model  ◄─┘
                               │
                      ranked files + the exact matching sentence, highlighted
 ```
 
-- **Embeddings:** off‑the‑shelf `BAAI/bge-base-en-v1.5` (768‑dim). No training, ever.
+- **Fathom's semantic model:** a compact **109M‑param embedding network** (768‑dim), purpose‑built to represent *meaning* — not a text‑generating LLM. Runs on CPU, no GPU required, and **never trains on your files**.
 - **Retrieval:** exact FAISS (fp16 scalar‑quantized — half the RAM/disk, still exhaustive) fused with a BM25 lexical arm; CJK‑aware chunking + bigram tokenizer so Chinese documents are fully searchable.
 - **Instant mode:** queries the OS content index via the `Search.CollatorDSO` provider, then embeds and re‑ranks the candidates — global content search with **zero pre‑indexing**.
 - **Robust by design:** crash‑durable index writes (fsync + generation‑stamped, torn saves detected and quarantined), save‑on‑exit, live progress and search *during* indexing, and a single‑thread watcher that survives bulk file copies.
 
-Honest scope: Fathom's semantic quality is "genuinely useful," not magic — small local models top out well below a datacenter. The bundled model is English‑first; Chinese search works (structure + lexical + bigram BM25), and you can drop in `bge-base-zh` if Chinese is your main language. The point isn't to beat the cloud on a benchmark — it's to give you cloud‑grade *convenience* with **zero** privacy cost.
+Fathom is English‑first today, and Chinese is fully searchable (structure + lexical + bigram BM25); a Chinese‑primary model can be swapped in. The promise isn't to beat a datacenter on a benchmark — it's cloud‑grade *convenience* with **zero** privacy cost.
 
 ## Project layout
 
@@ -108,11 +108,11 @@ demo_*.py             runnable end‑to‑end examples
 run.bat               double‑click launcher
 ```
 
-## License
+## License & credits
 
 **[PolyForm Noncommercial 1.0.0](LICENSE.md)** — free to use, study, modify, and share for any **noncommercial** purpose (personal use, research, education, nonprofits). Commercial use is not granted by this license; reach out if you want to talk.
 
-Bundled/adjacent third parties are **not** included in this repo and remain under their own terms: the embedding model (BAAI, MIT), FAISS (MIT), and Everything's `es.exe` (voidtools — download it yourself for filename mode).
+<sub>Fathom stands on excellent open source: its embedding weights come from the open **BGE** model (BAAI, MIT), retrieval uses **FAISS** (MIT), and filename mode talks to **Everything** (`es.exe`, voidtools — download it yourself). These remain under their own terms.</sub>
 
 ---
 
