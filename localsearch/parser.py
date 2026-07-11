@@ -8,7 +8,23 @@ from html.parser import HTMLParser
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from . import ocr as _ocr
+
 log = logging.getLogger("localsearch.parser")
+
+_OCR_ON = False
+
+
+def set_ocr(enabled):
+    """Turn image OCR on/off. Returns the effective state (on only if the Windows
+    OCR engine is actually available)."""
+    global _OCR_ON
+    _OCR_ON = bool(enabled) and _ocr.available()
+    return _OCR_ON
+
+
+def _ocr_active():
+    return _OCR_ON
 
 try:
     import fitz
@@ -114,14 +130,23 @@ _PARSERS = {".txt": _read_text, ".md": _parse_md, ".pdf": _parse_pdf, ".docx": _
 SUPPORTED = tuple(_PARSERS.keys())
 
 
+def current_exts():
+    """Extensions the engine should index right now (image types only while OCR
+    is on) -- the single source of truth for both the walk and the watcher."""
+    return SUPPORTED + _ocr.IMAGE_EXT if _OCR_ON else SUPPORTED
+
+
 def is_supported(path):
-    return Path(path).suffix.lower() in _PARSERS
+    ext = Path(path).suffix.lower()
+    return ext in _PARSERS or (_OCR_ON and ext in _ocr.IMAGE_EXT)
 
 
 def parse_file(path):
     """Return extracted text, or None if unsupported / unreadable (logged)."""
     ext = Path(path).suffix.lower()
     fn = _PARSERS.get(ext)
+    if fn is None and _OCR_ON and ext in _ocr.IMAGE_EXT:
+        fn = _ocr.ocr_image
     if fn is None:
         log.debug("skip unsupported type: %s", path)
         return None

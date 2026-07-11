@@ -27,6 +27,8 @@ class AppState:
         self.index_dir = Path(index_dir)
         self.folders_file = self.index_dir / "folders.json"
         self.folders = self._load_folders()
+        self.settings_file = self.index_dir / "settings.json"
+        self.settings = self._load_settings()
         self.building = False
         self.build_lock = threading.Lock()
         self.cancel = False
@@ -47,16 +49,28 @@ class AppState:
 
     def _save_folders(self):
         """Atomically persist the folder list (tmp + fsync + replace)."""
+        self._atomic_json(self.folders_file, self.folders)
+
+    def _load_settings(self):
+        try:
+            return json.loads(self.settings_file.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    def _save_settings(self):
+        self._atomic_json(self.settings_file, self.settings)
+
+    def _atomic_json(self, target, data):
         try:
             self.index_dir.mkdir(parents=True, exist_ok=True)
-            tmp = self.folders_file.with_suffix(".json.tmp")
+            tmp = target.with_suffix(target.suffix + ".tmp")
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self.folders, f)
+                json.dump(data, f)
                 f.flush()
                 os.fsync(f.fileno())
-            tmp.replace(self.folders_file)
+            tmp.replace(target)
         except Exception as e:
-            log.warning("could not persist folders: %s", e)
+            log.warning("could not persist %s: %s", target.name, e)
 
     def resume_watch(self):
         existing = [f for f in self.folders if os.path.isdir(f)]
@@ -97,6 +111,8 @@ def create_app(index_dir, config=None):
     from . import winsearch
     engine = SearchEngine(index_dir, config or Config())
     state = AppState(engine, index_dir)
+    if state.settings.get("ocr"):
+        engine.set_ocr(True)             # restore the persisted image-OCR choice
     state.resume_watch()
 
     def _warm():
@@ -124,6 +140,7 @@ def create_app(index_dir, config=None):
                        model_ready=state.model_ready, last_error=state.last_error,
                        last_error_detail=state.last_error_detail, index_error=engine.load_error,
                        personalize=engine.personalizer.stats(),
+                       ocr=engine.ocr_status(),
                        dlc=state.dlc, restart_required=state.restart_required)
 
     @app.post("/api/cancel_build")
@@ -143,6 +160,25 @@ def create_app(index_dir, config=None):
         # wipe the local behavioral profile (opens + interest vector)
         engine.personalizer.reset()
         return jsonify(ok=True)
+
+    @app.get("/api/ocr")
+    def ocr_get():
+        return jsonify(engine.ocr_status())
+
+    @app.post("/api/ocr")
+    def ocr_set():
+        # toggle image OCR (Windows built-in engine); images index on next rescan.
+        # Refuse mid-build: flipping the supported-set while a scan is parsing would
+        # record in-flight images as empty and (unchanged mtime) never retry them.
+        on = bool((request.get_json(silent=True) or {}).get("enabled", False))
+        with state.build_lock:
+            if state.building:
+                return jsonify(ok=False, code="busy",
+                               error="Busy indexing; try again after it finishes."), 409
+            st = engine.set_ocr(on)
+        state.settings["ocr"] = st["enabled"]
+        state._save_settings()
+        return jsonify(ok=True, **st)
 
     @app.get("/api/dlc")
     def dlc_list():

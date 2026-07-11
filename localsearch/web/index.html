@@ -84,6 +84,15 @@
       <span id="drives"></span>
       <button id="rescanBtn" onclick="rescan()" data-i18n="btn_rescan" data-i18n-title="ttl_rescan">重新扫描（仅变化）</button>
     </div>
+    <div class="note" id="ocrRow" style="margin-top:8px; display:none; align-items:center; gap:10px; flex-wrap:wrap">
+      <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer">
+        <input type="checkbox" id="ocrChk" onchange="toggleOcr()">
+        <span data-i18n="ocr_label" data-i18n-title="ttl_ocr">识别图片文字（OCR）</span>
+      </label>
+      <span style="font-size:12px; color:var(--mut)" data-i18n="ocr_hint">用系统内置引擎读出截图/扫描件里的文字 · 不下载模型 · 全程本地</span>
+    </div>
+    <div class="note warn" id="ocrRescan" style="display:none" data-i18n="ocr_rescan">已开启图片识别 —— 点「重新扫描」后，截图 / 扫描件就能按意思搜到。</div>
+    <div class="note" id="ocrUnavail" style="display:none; color:var(--mut)" data-i18n="ocr_unavail">这台电脑没装 Windows OCR 语言包，暂时识别不了图片文字。</div>
     <div id="folderChips"></div>
     <div class="bar" id="bar"><div id="barFill"></div></div>
     <div class="status" id="status" style="margin-top:8px" data-i18n="st_loading">加载中…</div>
@@ -186,6 +195,14 @@ const I18N = {
     btn_forget:"忘记我", ttl_forget:"清空本地学到的偏好（打开记录 + 兴趣向量）",
     pers_hint:"越用越懂你 · 全程本地 · 从不上传 · 从不训练模型",
     nt_forgot:"已清空本地个性化记录。", badge_personal:"常用",
+    ocr_label:"识别图片文字（OCR）",
+    ttl_ocr:"用 Windows 自带的 OCR 引擎读出图片（截图、扫描件、照片）里的文字，让它们也能按意思被搜到。不下载任何模型、全程本地；开启后点「重新扫描」生效。",
+    ocr_hint:"用系统内置引擎读出截图/扫描件里的文字 · 不下载模型 · 全程本地",
+    ocr_rescan:"已开启图片识别 —— 点「重新扫描」后，截图 / 扫描件就能按意思搜到。",
+    ocr_unavail:"这台电脑没装 Windows OCR 语言包，暂时识别不了图片文字。",
+    nt_ocr_on:"已开启图片文字识别（OCR）。点「重新扫描」把截图/扫描件纳入索引。",
+    nt_ocr_off:"已关闭图片文字识别。",
+    nt_ocr_unavail:"这台电脑没有可用的 Windows OCR 语言包，无法开启。",
     dlc_title:"扩展包", dlc_badge:"可选",
     dlc_note:"按需下载的可选增强(基础版 100% 离线;扩展包只在你点击时才从本项目 GitHub 下载并做校验)。",
     dlc_restart:"已安装/更改扩展包 —— 关掉窗口重新打开即可生效。",
@@ -243,6 +260,14 @@ const I18N = {
     btn_forget:"Forget me", ttl_forget:"Clear everything learned locally (open history + interest vector)",
     pers_hint:"Gets to know you as you use it · fully local · never uploaded · never trains the model",
     nt_forgot:"Cleared the local personalization profile.", badge_personal:"frequent",
+    ocr_label:"Read text in images (OCR)",
+    ttl_ocr:"Use the Windows built-in OCR engine to read text inside images (screenshots, scans, photos) so they can be found by meaning too. No model download, fully on-device; click Rescan to apply.",
+    ocr_hint:"Reads text inside screenshots / scans with the built-in engine · no model download · fully local",
+    ocr_rescan:"Image OCR is on — click Rescan and your screenshots / scans become searchable by meaning.",
+    ocr_unavail:"This PC has no Windows OCR language pack, so image text can't be read yet.",
+    nt_ocr_on:"Image OCR is on. Click Rescan to fold screenshots / scans into the index.",
+    nt_ocr_off:"Image OCR is off.",
+    nt_ocr_unavail:"No usable Windows OCR language pack on this PC — can't enable it.",
     dlc_title:"Add-ons", dlc_badge:"optional",
     dlc_note:"Optional enhancements, downloaded on demand (the base app is 100% offline; a pack is only fetched — and checksum-verified — from this project's GitHub when you click).",
     dlc_restart:"Add-on installed/changed — close this window and reopen to apply.",
@@ -330,6 +355,38 @@ async function forgetMe(){
   notice(t('nt_forgot'));
   if(document.getElementById('q').value.trim()) doSearch();
 }
+let OCR_PENDING=false, OCR_AVAIL=false, OCR_ON=false, OCR_EXPECT=null;
+async function toggleOcr(){
+  const chk=document.getElementById('ocrChk');
+  const want = chk.checked;                 // availability is probed server-side on enable
+  OCR_PENDING=true;
+  const r=await api('/api/ocr', {enabled: want});
+  if(!r || !r.ok){ chk.checked=OCR_ON; OCR_PENDING=false; notice(emsg(r), true); return; }
+  OCR_AVAIL = !!r.available;
+  OCR_ON = !!r.enabled; chk.checked = OCR_ON;
+  chk.disabled = want && !OCR_AVAIL;
+  document.getElementById('ocrUnavail').style.display = (want && !OCR_AVAIL)? 'block':'none';
+  document.getElementById('ocrRescan').style.display = OCR_ON? 'block':'none';
+  notice(t((want && !OCR_AVAIL)? 'nt_ocr_unavail' : (OCR_ON? 'nt_ocr_on':'nt_ocr_off')),
+         want && !OCR_AVAIL);
+  OCR_EXPECT = OCR_ON;          // ignore any status predating this toggle until confirmed
+  OCR_PENDING=false;
+}
+function applyOcrStatus(o){
+  if(!o) return;
+  const known = o.available===true || o.available===false;   // null => not yet probed
+  OCR_AVAIL = known ? !!o.available : true;                   // optimistic until a probe
+  document.getElementById('ocrRow').style.display = 'flex';
+  document.getElementById('ocrUnavail').style.display = (known && !o.available)? 'block':'none';
+  document.getElementById('ocrChk').disabled = known && !o.available;
+  if(OCR_PENDING) return;
+  const enabled = !!o.enabled;
+  if(OCR_EXPECT!==null){ if(enabled!==OCR_EXPECT) return; OCR_EXPECT=null; }  // drop stale
+  OCR_ON = enabled;
+  const chk=document.getElementById('ocrChk');
+  if(chk.checked!==OCR_ON) chk.checked=OCR_ON;
+  document.getElementById('ocrRescan').style.display = OCR_ON? 'block':'none';
+}
 let DLC_PACKS=[];
 async function loadDlc(){
   try{
@@ -398,6 +455,7 @@ async function poll(){
     WS_OK = s.ws_available; MODEL_READY = !!s.model_ready;
     if(s.personalize && !PERS_PENDING){ PERS_ON = !!s.personalize.enabled;
       const pc=document.getElementById('persChk'); if(pc && pc.checked!==PERS_ON) pc.checked=PERS_ON; }
+    applyOcrStatus(s.ocr);
     if(DLC_PACKS.length){
       renderDlc(s.dlc, s.restart_required);
       const tag = s.dlc? (s.dlc.status+'|'+s.dlc.id) : '';

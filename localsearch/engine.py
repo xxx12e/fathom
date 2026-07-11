@@ -10,6 +10,8 @@ import numpy as np
 from tqdm import tqdm
 
 from .config import Config
+from . import parser
+from . import ocr
 from .parser import parse_file, is_supported
 from .chunker import chunk_text, tokenize
 from .embedder import Embedder
@@ -62,6 +64,7 @@ class SearchEngine:
         if ov:
             self.cfg.model_name = ov
             log.info("DLC model pack active: %s", ov)
+        parser.set_ocr(self.cfg.ocr)     # image OCR (opt-in; Windows built-in)
         self.index = None
         if DualIndex.exists(self.index_dir):
             try:
@@ -149,7 +152,7 @@ class SearchEngine:
 
     def _walk(self, root):
         """scandir walk yielding (path, mtime, size); prunes system/junk dirs."""
-        exts = tuple(e.lower() for e in self.cfg.supported_ext)
+        exts = tuple(e.lower() for e in parser.current_exts())
         max_bytes = self.cfg.max_file_mb * 1e6
         stack = [str(root)]
         while stack:
@@ -649,6 +652,18 @@ class SearchEngine:
             self._watcher.stop()
             self._watcher = None
 
+
+    # ---- image OCR (optional; Windows built-in engine) ----
+    def set_ocr(self, enabled):
+        """Enable/disable image OCR. Images are only indexed on the next scan."""
+        self.cfg.ocr = bool(enabled)
+        parser.set_ocr(self.cfg.ocr)
+        return self.ocr_status()
+
+    def ocr_status(self):
+        st = ocr.status()
+        st["enabled"] = bool(self.cfg.ocr and st["available"])
+        return st
 
     # ---- DLC (optional downloadable packs) ----
     def dlc_status(self):

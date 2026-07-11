@@ -39,6 +39,7 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 | 🎯 matches paraphrases with **zero shared words** | exact FAISS + BM25 hybrid, fp16 — half the RAM/disk |
 | 🔒 **0 bytes** leave your machine | fully offline · binds `127.0.0.1` · no account, no telemetry |
 | 📄 **10 formats** (txt·md·pdf·docx·xlsx·pptx·csv·html·rtf) · no Docker | single `.exe` · optional add‑on packs (DLC) |
+| 🖼️ **Reads images too** — opt‑in OCR | screenshots / scans / photos searchable **by meaning** · Windows built‑in engine · **no model download** |
 
 <sub>Speeds measured on a modern GPU (embedding) + FAISS; CPU stays well under the 100 ms interactive bar.</sub>
 
@@ -53,6 +54,8 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 Plus: **bilingual UI (中文 / English, one‑click toggle)**, keyboard‑driven (`Enter` to search, `↑/↓` to move, `Enter` to open), live‑highlighted snippets that show *why* a file matched, and a portable build that runs on any Windows PC with **no Python install**.
 
 **Optional add‑on packs (DLC).** The base stays tiny and 100% offline; heavier extras (starting with a larger multilingual model) download **only when you click**, from this repo's releases, SHA‑256‑verified — see **Add‑ons** in the app.
+
+**Read text inside images (opt‑in OCR).** Flip on OCR in Control mode and Scry reads the text in your **screenshots, scans, and photos** with the **Windows built‑in OCR engine** — so a screenshotted receipt or a scanned contract becomes searchable **by meaning**, in whatever languages your Windows has OCR packs for (English + 中文 out of the box on most PCs). It downloads **no model** (Windows provides the engine and language data), stays **100% offline**, adds only ~4 MB to the app, and is **off by default** — turn it on and rescan. It's for *finding*, not perfect transcription: stylized or low‑res text can come out noisy, but semantic search shrugs that off.
 
 ## It learns *you* — on your machine
 

@@ -12,3 +12,14 @@ pymupdf>=1.24          # PDF text extraction
 python-docx>=1.1       # .docx text extraction
 watchdog>=4.0          # live folder watching (Control mode)
 pywin32>=306 ; sys_platform == "win32"   # Windows Search content index (instant mode)
+
+# Optional image OCR (search screenshots/scans by meaning). Uses the Windows
+# built-in OCR engine -- no model to download; degrades to off if absent.
+winrt-runtime>=3.0 ; sys_platform == "win32"
+winrt-Windows.Media.Ocr>=3.0 ; sys_platform == "win32"
+winrt-Windows.Graphics.Imaging>=3.0 ; sys_platform == "win32"
+winrt-Windows.Storage>=3.0 ; sys_platform == "win32"
+winrt-Windows.Storage.Streams>=3.0 ; sys_platform == "win32"
+winrt-Windows.Globalization>=3.0 ; sys_platform == "win32"
+winrt-Windows.Foundation>=3.0 ; sys_platform == "win32"
+winrt-Windows.Foundation.Collections>=3.0 ; sys_platform == "win32"

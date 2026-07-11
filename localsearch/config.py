@@ -39,6 +39,7 @@ class Config:
 
     supported_ext: tuple = (".txt", ".md", ".pdf", ".docx", ".xlsx", ".pptx",
                             ".csv", ".html", ".htm", ".rtf")
+    ocr: bool = False                 # opt-in image OCR (Windows built-in engine)
     change_detection: str = "mtime_size"
     max_file_mb: float = 50.0
 
