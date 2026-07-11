@@ -40,6 +40,7 @@ class DualIndex:
         self.file_meta = {}
         self.next_id = 0
         self.generation = 0
+        self.model_tag = ""       # which embedding model built this index (dim guard)
         self._bm25 = None
         self._bm25_cids = []
         self._tokens = {}
@@ -179,7 +180,7 @@ class DualIndex:
         store = dict(version=INDEX_VERSION, generation=self.generation, dim=self.dim,
                      chunk_meta=dict(self.chunk_meta), file_chunks=dict(self.file_chunks),
                      file_meta=dict(self.file_meta), next_id=self.next_id,
-                     tokens=dict(self._tokens))
+                     tokens=dict(self._tokens), model_tag=self.model_tag)
         return self.generation, dense_arr, store
 
     @staticmethod
@@ -230,6 +231,7 @@ class DualIndex:
         obj.file_meta = store["file_meta"]
         obj.next_id = store["next_id"]
         obj.generation = store["generation"]
+        obj.model_tag = store.get("model_tag", "")
         obj._tokens = store.get("tokens") or {}
 
 

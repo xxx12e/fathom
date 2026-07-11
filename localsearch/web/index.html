@@ -123,6 +123,14 @@
   </div>
 
   <div id="results"></div>
+
+  <div class="card" id="dlcCard" style="display:none">
+    <div style="font-weight:500"><span data-i18n="dlc_title">扩展包</span>
+      <span style="font-size:12px;color:var(--mut)" data-i18n="dlc_badge">可选</span></div>
+    <div class="note" style="margin:2px 0 8px" data-i18n="dlc_note">按需下载的可选增强(基础版 100% 离线;扩展包只在你点击时才从本项目 GitHub 下载并校验)。</div>
+    <div class="note warn" id="dlcRestart" style="display:none" data-i18n="dlc_restart">已安装/更改扩展包 —— 关掉窗口重新打开即可生效。</div>
+    <div id="dlcList"></div>
+  </div>
 </div>
 
 <script>
@@ -178,6 +186,11 @@ const I18N = {
     btn_forget:"忘记我", ttl_forget:"清空本地学到的偏好（打开记录 + 兴趣向量）",
     pers_hint:"越用越懂你 · 全程本地 · 从不上传 · 从不训练模型",
     nt_forgot:"已清空本地个性化记录。", badge_personal:"常用",
+    dlc_title:"扩展包", dlc_badge:"可选",
+    dlc_note:"按需下载的可选增强(基础版 100% 离线;扩展包只在你点击时才从本项目 GitHub 下载并做校验)。",
+    dlc_restart:"已安装/更改扩展包 —— 关掉窗口重新打开即可生效。",
+    btn_download:"下载", btn_installed:"已安装", btn_uninstall:"卸载",
+    dlc_downloading:"下载中 {pct}%", dlc_soon:"即将推出",
   },
   en: {
     app_title:"Local Semantic Search",
@@ -230,6 +243,11 @@ const I18N = {
     btn_forget:"Forget me", ttl_forget:"Clear everything learned locally (open history + interest vector)",
     pers_hint:"Gets to know you as you use it · fully local · never uploaded · never trains the model",
     nt_forgot:"Cleared the local personalization profile.", badge_personal:"frequent",
+    dlc_title:"Add-ons", dlc_badge:"optional",
+    dlc_note:"Optional enhancements, downloaded on demand (the base app is 100% offline; a pack is only fetched — and checksum-verified — from this project's GitHub when you click).",
+    dlc_restart:"Add-on installed/changed — close this window and reopen to apply.",
+    btn_download:"Download", btn_installed:"Installed", btn_uninstall:"Uninstall",
+    dlc_downloading:"downloading {pct}%", dlc_soon:"coming soon",
   },
 };
 let LANG = localStorage.getItem('ls_lang') === 'en' ? 'en' : 'zh';
@@ -265,6 +283,7 @@ function toggleLang(){
   localStorage.setItem('ls_lang', LANG);
   applyLang();
   loadDrives();
+  loadDlc();
   poll();
   if(LAST_RESULTS !== null) renderResults(LAST_RESULTS, LAST_MODE);
 }
@@ -311,6 +330,41 @@ async function forgetMe(){
   notice(t('nt_forgot'));
   if(document.getElementById('q').value.trim()) doSearch();
 }
+let DLC_PACKS=[];
+async function loadDlc(){
+  try{
+    const r=await api('/api/dlc'); DLC_PACKS=r.packs||[];
+    document.getElementById('dlcCard').style.display = DLC_PACKS.length? 'block':'none';
+    renderDlc(r.progress, r.restart_required);
+  }catch(e){}
+}
+function renderDlc(prog, restart){
+  document.getElementById('dlcRestart').style.display = restart? 'block':'none';
+  document.getElementById('dlcList').innerHTML = DLC_PACKS.map(p=>{
+    const name = LANG==='zh'? p.name_zh : p.name_en;
+    const desc = LANG==='zh'? p.desc_zh : p.desc_en;
+    const mb = p.size? ' · '+Math.round(p.size/1048576)+' MB' : '';
+    let btn;
+    if(p.installed) btn=`<button data-dlc-un="${escapeHtml(p.id)}">${escapeHtml(t('btn_uninstall'))}</button>`;
+    else if(!p.available) btn=`<button disabled>${escapeHtml(t('dlc_soon'))}</button>`;
+    else if(prog && prog.id===p.id && prog.status==='downloading'){
+      const pct=prog.total? Math.round(100*prog.done/prog.total):0;
+      btn=`<button disabled>${escapeHtml(t('dlc_downloading',{pct}))}</button>`;
+    } else btn=`<button class="primary" data-dlc-in="${escapeHtml(p.id)}">${escapeHtml(t('btn_download'))}</button>`;
+    return `<div class="res" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div><div class="name">${escapeHtml(name)}${escapeHtml(mb)}</div>
+        <div class="note" style="margin:2px 0 0">${escapeHtml(desc)}</div></div>
+      <div style="flex:none">${btn}</div></div>`;
+  }).join('');
+}
+document.getElementById('dlcList').addEventListener('click', ev=>{
+  const inb=ev.target.closest('button[data-dlc-in]'); if(inb){ installDlc(inb.dataset.dlcIn); return; }
+  const unb=ev.target.closest('button[data-dlc-un]'); if(unb){ uninstallDlc(unb.dataset.dlcUn); }
+});
+async function installDlc(id){ const r=await api('/api/dlc/install',{id});
+  if(!r.ok) notice(r.error||t('generic_fail'), true); loadDlc(); }
+async function uninstallDlc(id){ await api('/api/dlc/uninstall',{id}); loadDlc(); }
+loadDlc();
 async function loadDrives(){
   const r = await api('/api/drives');
   const drives = r.drives||[];
@@ -344,6 +398,11 @@ async function poll(){
     WS_OK = s.ws_available; MODEL_READY = !!s.model_ready;
     if(s.personalize && !PERS_PENDING){ PERS_ON = !!s.personalize.enabled;
       const pc=document.getElementById('persChk'); if(pc && pc.checked!==PERS_ON) pc.checked=PERS_ON; }
+    if(DLC_PACKS.length){
+      renderDlc(s.dlc, s.restart_required);
+      const tag = s.dlc? (s.dlc.status+'|'+s.dlc.id) : '';
+      if(s.dlc && (s.dlc.status==='done'||s.dlc.status==='error') && poll._dlcTag!==tag){ poll._dlcTag=tag; loadDlc(); }
+    }
     const bar=document.getElementById('bar'), fill=document.getElementById('barFill');
     const cancel=document.getElementById('cancelBtn'), note=document.getElementById('buildNote');
     const mi=document.getElementById('mInstant');

@@ -35,6 +35,9 @@ class AppState:
         self.last_error_detail = ""
         self.model_ready = False
         self.progress = {"done": 0, "total": 0, "file": ""}
+        self.dlc = {"id": None, "done": 0, "total": 0, "status": "idle", "error": ""}
+        self.dlc_lock = threading.Lock()
+        self.restart_required = False
 
     def _load_folders(self):
         try:
@@ -120,7 +123,8 @@ def create_app(index_dir, config=None):
                        last_build=state.last_build, ws_available=ws_available,
                        model_ready=state.model_ready, last_error=state.last_error,
                        last_error_detail=state.last_error_detail, index_error=engine.load_error,
-                       personalize=engine.personalizer.stats())
+                       personalize=engine.personalizer.stats(),
+                       dlc=state.dlc, restart_required=state.restart_required)
 
     @app.post("/api/cancel_build")
     def cancel_build():
@@ -139,6 +143,48 @@ def create_app(index_dir, config=None):
         # wipe the local behavioral profile (opens + interest vector)
         engine.personalizer.reset()
         return jsonify(ok=True)
+
+    @app.get("/api/dlc")
+    def dlc_list():
+        from . import dlc as _dlc
+        return jsonify(packs=engine.dlc_status(), progress=state.dlc,
+                       restart_required=state.restart_required)
+
+    @app.post("/api/dlc/install")
+    def dlc_install():
+        from . import dlc as _dlc
+        pid = (request.get_json(silent=True) or {}).get("id", "")
+        with state.dlc_lock:
+            if state.dlc["status"] == "downloading":
+                return jsonify(ok=False, error="A download is already in progress."), 409
+            state.dlc = {"id": pid, "done": 0, "total": 0, "status": "downloading", "error": ""}
+
+        def worker():
+            try:
+                pack = _dlc.install(str(state.index_dir), pid,
+                                    progress=lambda d, t: state.dlc.update(done=d, total=t))
+                if pack["kind"] == "model":
+                    engine.quarantine_index()      # dim changed -> rebuild on restart
+                state.restart_required = True
+                state.dlc.update(status="done")
+            except Exception as e:
+                log.error("DLC install failed: %s", e)
+                state.dlc.update(status="error", error=str(e))
+
+        threading.Thread(target=worker, daemon=True).start()
+        return jsonify(ok=True, started=True)
+
+    @app.post("/api/dlc/uninstall")
+    def dlc_uninstall():
+        from . import dlc as _dlc
+        pid = (request.get_json(silent=True) or {}).get("id", "")
+        removed = _dlc.uninstall(str(state.index_dir), pid)
+        if removed:
+            p = _dlc._by_id(pid)
+            if p and p["kind"] == "model":
+                engine.quarantine_index()
+            state.restart_required = True
+        return jsonify(ok=True, removed=removed)
 
     @app.post("/api/pick_folder")
     def pick_folder():

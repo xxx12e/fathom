@@ -37,7 +37,8 @@ class Config:
     pers_w_interest: float = 0.3
     pers_decay: float = 0.9           # older opens decay -> recency-weighted profile
 
-    supported_ext: tuple = (".txt", ".md", ".pdf", ".docx")
+    supported_ext: tuple = (".txt", ".md", ".pdf", ".docx", ".xlsx", ".pptx",
+                            ".csv", ".html", ".htm", ".rtf")
     change_detection: str = "mtime_size"
     max_file_mb: float = 50.0
 

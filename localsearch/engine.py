@@ -16,6 +16,7 @@ from .embedder import Embedder
 from .index import DualIndex, IndexVersionError, IndexCorruptError
 from .search import retrieve, make_snippets, filename_search, Hit
 from .personalize import Personalizer, _norm
+from . import dlc
 
 log = logging.getLogger("localsearch")
 
@@ -56,20 +57,30 @@ class SearchEngine:
         self._last_shown = OrderedDict()  # normcased path -> vec (recent shown, for record_open)
         self._shown_lock = threading.Lock()
         self.load_error = ""
+        # optional DLC model pack overrides the bundled model (auto-scanned)
+        ov = dlc.model_override(self.index_dir)
+        if ov:
+            self.cfg.model_name = ov
+            log.info("DLC model pack active: %s", ov)
         self.index = None
         if DualIndex.exists(self.index_dir):
             try:
                 self.index = DualIndex.load(self.index_dir)
+                if self.index.model_tag and self.index.model_tag != self.cfg.model_name:
+                    raise IndexVersionError("embedding model changed")
             except IndexVersionError as e:
                 log.warning("index version changed (%s); rebuild needed", e)
+                self.index = None
                 DualIndex.quarantine(self.index_dir)
                 self.load_error = "idx_version"
             except IndexCorruptError as e:
                 log.error("index damaged (%s); quarantined", e)
+                self.index = None
                 DualIndex.quarantine(self.index_dir)
                 self.load_error = "idx_corrupt"
             except Exception as e:
                 log.error("failed to load index (%s); starting empty", e)
+                self.index = None
                 self.load_error = "idx_load"
 
 
@@ -106,6 +117,7 @@ class SearchEngine:
     def _ensure_index(self):
         if self.index is None:
             self.index = DualIndex(self.embedder.dim)
+        self.index.model_tag = self.cfg.model_name    # stamp for the DLC/model guard
 
 
     def _hash(self, path):
@@ -637,6 +649,17 @@ class SearchEngine:
             self._watcher.stop()
             self._watcher = None
 
+
+    # ---- DLC (optional downloadable packs) ----
+    def dlc_status(self):
+        return dlc.status(self.index_dir)
+
+    def quarantine_index(self):
+        """Drop the deep index (e.g. after a model pack changes its dim); it
+        rebuilds on the next scan. Instant/filename modes are unaffected."""
+        with self._lock:
+            self.index = None
+        DualIndex.quarantine(self.index_dir)
 
     def stats(self):
         with self._lock:
