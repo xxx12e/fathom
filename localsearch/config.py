@@ -7,8 +7,8 @@ from . import resources
 @dataclass
 class Config:
     model_name: str = field(default_factory=resources.model_path)
-    query_prefix: str = "Represent this sentence for searching relevant passages: "
-    doc_prefix: str = ""
+    query_prefix: str = "query: "             # multilingual-e5 wants both prefixes
+    doc_prefix: str = "passage: "
     device: str = "auto"
     embed_batch_size: int = 128
 

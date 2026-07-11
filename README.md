@@ -11,7 +11,7 @@ Type what you *mean* — not the exact words — and find the file. Your files n
 
 `全盘语义搜索 · 秒懂你要找什么 · 纯本地、不联网、隐私零外泄`
 
-**Windows · CPU or GPU · no cloud, no account, no telemetry**
+**Windows · 100+ languages · CPU or GPU · no cloud, no account, no telemetry**
 
 </div>
 
@@ -21,7 +21,7 @@ Type what you *mean* — not the exact words — and find the file. Your files n
 
 You remember *what a file was about*. You don't remember its name, or which of five drives it's on, or whether you wrote "invoice" or "发票" or "billing". Keyword search fails you exactly there.
 
-**Scry searches by meaning.** At its core is a **purpose‑built semantic model** — a compact **109‑million‑parameter embedding network** engineered to understand *what text means*, **not** a bloated multi‑gigabyte local LLM bolted onto a search box. It **re‑ranks whole‑disk candidates with that model** in milliseconds, and — when you want the very best quality — it **builds a complete deep semantic index of the folders you choose**, embedding every passage so it can match your *idea* against files that share **zero words** with your query.
+**Scry searches by meaning.** At its core is a **purpose‑built multilingual semantic model** — a compact **118‑million‑parameter embedding network** that understands *what text means* across **100+ languages**, **not** a bloated multi‑gigabyte local LLM bolted onto a search box. It **re‑ranks whole‑disk candidates with that model** in milliseconds, and — when you want the very best quality — it **builds a complete deep semantic index of the folders you choose**, embedding every passage so it can match your *idea* against files that share **zero words** with your query — **even in a different language** (search 中文, find English files, and vice versa).
 
 A real semantic engine, not a keyword matcher with a marketing label — and it's **209 MB, lightweight, and 100% on your machine.**
 
@@ -33,11 +33,12 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 |---|---|
 | ⚡ **~8 ms** to semantically search **100,000 files** | comfortably interactive; the model is tiny, not an LLM |
 | 🌐 **~0.1 s** whole‑disk semantic results | **zero pre‑indexing** — rides the OS content index |
-| 🪶 **109M params · 209 MB** semantic model | vs the **4–8 GB** local LLMs other "AI search" tools ship |
+| 🪶 **118M params · 235 MB** multilingual model | vs the **4–8 GB** local LLMs other "AI search" tools ship |
+| 🌍 **100+ languages · cross‑language** | search 中文 → find English files: measured **1/10 → 10/10** vs an English‑only model |
 | 🔁 **~35 s** to index 100k files, **~0.1 s** to re‑scan | incremental diff measured **235× faster** than a full scan |
 | 🎯 matches paraphrases with **zero shared words** | exact FAISS + BM25 hybrid, fp16 — half the RAM/disk |
 | 🔒 **0 bytes** leave your machine | fully offline · binds `127.0.0.1` · no account, no telemetry |
-| 📄 **txt · md · pdf · docx** · **中文 & English** | bilingual UI, one‑click 中/EN toggle |
+| 📄 **txt · md · pdf · docx** · no Docker, single `.exe` | bilingual UI, one‑click 中/EN toggle |
 
 <sub>Speeds measured on a modern GPU (embedding) + FAISS; CPU stays well under the 100 ms interactive bar.</sub>
 
@@ -90,12 +91,12 @@ or just double‑click **`run.bat`** (Windows).
                      ranked files + the exact matching sentence, highlighted
 ```
 
-- **Scry's semantic model:** a compact **109M‑param embedding network** (768‑dim), purpose‑built to represent *meaning* — not a text‑generating LLM. Runs on CPU, no GPU required, and **never trains on your files**.
+- **Scry's semantic model:** a compact **118M‑param multilingual embedding network** (`multilingual-e5-small`, 384‑dim, **100+ languages**), purpose‑built to represent *meaning* — not a text‑generating LLM. Runs on CPU, no GPU required, and **never trains on your files**.
 - **Retrieval:** exact FAISS (fp16 scalar‑quantized — half the RAM/disk, still exhaustive) fused with a BM25 lexical arm; CJK‑aware chunking + bigram tokenizer so Chinese documents are fully searchable.
 - **Instant mode:** queries the OS content index via the `Search.CollatorDSO` provider, then embeds and re‑ranks the candidates — global content search with **zero pre‑indexing**.
 - **Robust by design:** crash‑durable index writes (fsync + generation‑stamped, torn saves detected and quarantined), save‑on‑exit, live progress and search *during* indexing, and a single‑thread watcher that survives bulk file copies.
 
-Scry is English‑first today, and Chinese is fully searchable (structure + lexical + bigram BM25); a Chinese‑primary model can be swapped in. The promise isn't to beat a datacenter on a benchmark — it's cloud‑grade *convenience* with **zero** privacy cost.
+Scry is **multilingual** — one model covering 100+ languages, so you can search in one language and find files written in another (Chinese and English are both first‑class). Cross‑language retrieval is strong but not magic: a query can occasionally lose to a topically‑adjacent same‑language file. The promise isn't to beat a datacenter on a benchmark — it's cloud‑grade *convenience* with **zero** privacy cost.
 
 ## Project layout
 
@@ -117,7 +118,7 @@ run.bat               double‑click launcher
 
 **[PolyForm Noncommercial 1.0.0](LICENSE.md)** — free to use, study, modify, and share for any **noncommercial** purpose (personal use, research, education, nonprofits). Commercial use is not granted by this license; reach out if you want to talk.
 
-<sub>Scry stands on excellent open source: its embedding weights come from the open **BGE** model (BAAI, MIT), retrieval uses **FAISS** (MIT), and filename mode talks to **Everything** (`es.exe`, voidtools — download it yourself). These remain under their own terms.</sub>
+<sub>Scry stands on excellent open source: its embedding weights come from the open **multilingual‑e5** model (intfloat, MIT), retrieval uses **FAISS** (MIT), and filename mode talks to **Everything** (`es.exe`, voidtools — download it yourself). These remain under their own terms.</sub>
 
 ---
 

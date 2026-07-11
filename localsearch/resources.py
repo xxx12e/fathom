@@ -16,9 +16,11 @@ def es_exe():
 
 
 def model_path():
-    """Bundled model dir when frozen (fully offline); else the HF hub id."""
+    """Bundled model dir when frozen (fully offline); else the HF hub id.
+    multilingual-e5-small: 100+ languages, strong cross-lingual retrieval, light
+    (~118M params, 384-dim). Needs 'query: ' / 'passage: ' prefixes (see Config)."""
     if FROZEN:
-        m = _MEI / "models" / "bge-base"
+        m = _MEI / "models" / "embed"
         if (m / "config.json").exists():
             return str(m)
-    return "BAAI/bge-base-en-v1.5"
+    return "intfloat/multilingual-e5-small"

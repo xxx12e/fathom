@@ -13,8 +13,8 @@ from .chunker import tokenize
 log = logging.getLogger("localsearch.index")
 faiss.omp_set_num_threads(1)
 
-INDEX_VERSION = 2
-_MAGIC = b"LSDX0002"
+INDEX_VERSION = 3                 # bumped: embedding model swapped (dim 768->384)
+_MAGIC = b"LSDX0003"
 
 
 class IndexVersionError(Exception):

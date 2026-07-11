@@ -1,8 +1,8 @@
 # `localsearch` — the Scry engine
 
 The backend engine + local web UI behind [Scry](../README.md). Fully local/offline.
-Factory config is the validated default: **bge‑base embeddings + dense‑weighted hybrid
-(dense + BM25, α = 0.7), no reranker.**
+Factory config: **multilingual‑e5‑small embeddings (100+ languages, 384‑dim) + dense‑weighted
+hybrid (dense + BM25, α = 0.7), no reranker.**
 
 ## Run
 
@@ -44,7 +44,7 @@ dropped. A fresh `SearchEngine(same_dir)` loads from disk — no rebuild.
 | `config.py` | factory defaults + all tunables (model, α, chunk size, caps, exclude dirs) |
 | `parser.py` | robust text extraction: txt / md / pdf (PyMuPDF) / docx (python‑docx) |
 | `chunker.py` | CJK‑aware sentence chunking + BM25 tokenizer (words + CJK bigrams, interned) |
-| `embedder.py` | bge‑base wrapper (resident; query/doc prefixing; fp16‑checkpoint safe) |
+| `embedder.py` | e5 wrapper (resident; query/passage prefixing; fp16‑checkpoint safe) |
 | `index.py` | `DualIndex`: fp16 FAISS dense (exact) + BM25 + file→chunk map + crash‑durable persistence |
 | `search.py` | hybrid fusion → files + best‑sentence snippets; `es.exe` filename search |
 | `winsearch.py` | Windows Search content index (`Search.CollatorDSO`) for instant global mode |
@@ -82,7 +82,7 @@ hijacked); the model is **never trained**. Toggle via `/api/personalize`, wipe v
 See [`../requirements.txt`](../requirements.txt). Filename mode also needs
 [Everything](https://www.voidtools.com/) installed + running and its `es.exe` at
 `../tools/es.exe` (semantic modes work without it). First source run downloads the
-bge‑base model (~440 MB) once, then runs fully offline.
+`multilingual-e5-small` model (~470 MB) once, then runs fully offline.
 
 ## Packaging a portable, offline `.exe`
 
@@ -103,5 +103,6 @@ Bundle everything into a single self‑contained folder (no Python needed on the
 Small local models cap semantic quality below datacenter LLMs — that's the trade for
 "instant, private, offline." Flat FAISS + `rank_bm25` are exact and great to ~10⁴–10⁵
 chunks; `DualIndex` is the single seam to swap dense → ANN and BM25 → an inverted index at
-larger scale. Bundled model is English‑first; drop in `bge-base-zh` for Chinese‑primary use.
-No OCR; four formats (txt/md/pdf/docx) — deliberately.
+larger scale. Bundled model is multilingual (`multilingual-e5-small`, 100+ languages);
+cross‑language retrieval is strong but has a mild same‑language bias. No OCR; four formats
+(txt/md/pdf/docx) — deliberately.
