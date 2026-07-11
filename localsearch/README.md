@@ -1,6 +1,6 @@
-# `localsearch` — the Fathom engine
+# `localsearch` — the Scry engine
 
-The backend engine + local web UI behind [Fathom](../README.md). Fully local/offline.
+The backend engine + local web UI behind [Scry](../README.md). Fully local/offline.
 Factory config is the validated default: **bge‑base embeddings + dense‑weighted hybrid
 (dense + BM25, α = 0.7), no reranker.**
 

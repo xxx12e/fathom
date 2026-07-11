@@ -2,9 +2,9 @@
 
 🌐 **English** · [简体中文](README.zh.md)
 
-# 🏮 Fathom
+# 🔮 Scry
 
-### Everything finds filenames. **Fathom finds meaning.**
+### Everything finds filenames. **Scry finds meaning.**
 
 Instant, whole‑disk **semantic** file search that runs **100% offline**.
 Type what you *mean* — not the exact words — and find the file. Your files never leave your machine.
@@ -21,7 +21,7 @@ Type what you *mean* — not the exact words — and find the file. Your files n
 
 You remember *what a file was about*. You don't remember its name, or which of five drives it's on, or whether you wrote "invoice" or "发票" or "billing". Keyword search fails you exactly there.
 
-**Fathom searches by meaning.** At its core is a **purpose‑built semantic model** — a compact **109‑million‑parameter embedding network** engineered to understand *what text means*, **not** a bloated multi‑gigabyte local LLM bolted onto a search box. It **re‑ranks whole‑disk candidates with that model** in milliseconds, and — when you want the very best quality — it **builds a complete deep semantic index of the folders you choose**, embedding every passage so it can match your *idea* against files that share **zero words** with your query.
+**Scry searches by meaning.** At its core is a **purpose‑built semantic model** — a compact **109‑million‑parameter embedding network** engineered to understand *what text means*, **not** a bloated multi‑gigabyte local LLM bolted onto a search box. It **re‑ranks whole‑disk candidates with that model** in milliseconds, and — when you want the very best quality — it **builds a complete deep semantic index of the folders you choose**, embedding every passage so it can match your *idea* against files that share **zero words** with your query.
 
 A real semantic engine, not a keyword matcher with a marketing label — and it's **209 MB, lightweight, and 100% on your machine.**
 
@@ -53,7 +53,7 @@ Plus: **bilingual UI (中文 / English, one‑click toggle)**, keyboard‑driven
 
 ## It learns *you* — on your machine
 
-The more you use Fathom, the better it fits you: the **files and folders you actually open float toward the top** for similar searches, weighted toward your recent habits. It's a gentle re‑rank — a fresh query is **never** hijacked, and it **never buries the more relevant result**. And it's personalization with nothing to give up: it learns **only from your own clicks, on your own disk, and never trains the model or sends anything anywhere.** Toggle it off or hit **Forget me** whenever you like.
+The more you use Scry, the better it fits you: the **files and folders you actually open float toward the top** for similar searches, weighted toward your recent habits. It's a gentle re‑rank — a fresh query is **never** hijacked, and it **never buries the more relevant result**. And it's personalization with nothing to give up: it learns **only from your own clicks, on your own disk, and never trains the model or sends anything anywhere.** Toggle it off or hit **Forget me** whenever you like.
 
 ## The privacy stance (the whole point)
 
@@ -85,17 +85,17 @@ or just double‑click **`run.bat`** (Windows).
    (Windows Search   →     (Everything‑style,          (own FAISS index of
     content index)          MFT filename)               your chosen folders)
         │                                                    │
-        └──────────────►  neural re‑rank · Fathom semantic model  ◄─┘
+        └──────────────►  neural re‑rank · Scry semantic model  ◄─┘
                               │
                      ranked files + the exact matching sentence, highlighted
 ```
 
-- **Fathom's semantic model:** a compact **109M‑param embedding network** (768‑dim), purpose‑built to represent *meaning* — not a text‑generating LLM. Runs on CPU, no GPU required, and **never trains on your files**.
+- **Scry's semantic model:** a compact **109M‑param embedding network** (768‑dim), purpose‑built to represent *meaning* — not a text‑generating LLM. Runs on CPU, no GPU required, and **never trains on your files**.
 - **Retrieval:** exact FAISS (fp16 scalar‑quantized — half the RAM/disk, still exhaustive) fused with a BM25 lexical arm; CJK‑aware chunking + bigram tokenizer so Chinese documents are fully searchable.
 - **Instant mode:** queries the OS content index via the `Search.CollatorDSO` provider, then embeds and re‑ranks the candidates — global content search with **zero pre‑indexing**.
 - **Robust by design:** crash‑durable index writes (fsync + generation‑stamped, torn saves detected and quarantined), save‑on‑exit, live progress and search *during* indexing, and a single‑thread watcher that survives bulk file copies.
 
-Fathom is English‑first today, and Chinese is fully searchable (structure + lexical + bigram BM25); a Chinese‑primary model can be swapped in. The promise isn't to beat a datacenter on a benchmark — it's cloud‑grade *convenience* with **zero** privacy cost.
+Scry is English‑first today, and Chinese is fully searchable (structure + lexical + bigram BM25); a Chinese‑primary model can be swapped in. The promise isn't to beat a datacenter on a benchmark — it's cloud‑grade *convenience* with **zero** privacy cost.
 
 ## Project layout
 
@@ -117,7 +117,7 @@ run.bat               double‑click launcher
 
 **[PolyForm Noncommercial 1.0.0](LICENSE.md)** — free to use, study, modify, and share for any **noncommercial** purpose (personal use, research, education, nonprofits). Commercial use is not granted by this license; reach out if you want to talk.
 
-<sub>Fathom stands on excellent open source: its embedding weights come from the open **BGE** model (BAAI, MIT), retrieval uses **FAISS** (MIT), and filename mode talks to **Everything** (`es.exe`, voidtools — download it yourself). These remain under their own terms.</sub>
+<sub>Scry stands on excellent open source: its embedding weights come from the open **BGE** model (BAAI, MIT), retrieval uses **FAISS** (MIT), and filename mode talks to **Everything** (`es.exe`, voidtools — download it yourself). These remain under their own terms.</sub>
 
 ---
 
