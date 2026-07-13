@@ -84,6 +84,7 @@ The more you use Scry, the better it fits you: the **files and folders you actua
 **Is it safe to run?** Yes, and here's how to check rather than take my word for it:
 
 - It's an **unsigned** build, so Windows SmartScreen may say *"Windows protected your PC."* Click **More info → Run anyway**.
+- **Antivirus false positives are expected.** This is an *unsigned, PyInstaller‑packaged* app, and the PyInstaller bootloader is a byte pattern that some heuristic/ML antivirus engines flag on sight — regardless of what the code does. A VirusTotal scan will likely show **a handful of ~70 engines** flagging it (usually minor ones, rarely Microsoft Defender). That's normal for legit Python apps built this way and is **not** evidence of malware. Your real assurances: the whole thing is **open source — read it, or build the `.exe` yourself**; the **SHA‑256 above**; and its **read‑only, offline** behavior. Want more certainty? Run it in **Windows Sandbox**.
 - Verify the download is exactly the file I published — the SHA‑256 of `Scry-v1.4-win64-portable.zip` is:
 
 ```
