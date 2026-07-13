@@ -13,6 +13,12 @@ Type what you *mean* — not the exact words — and find the file. Your files n
 
 **Windows · 100+ languages · CPU or GPU · no cloud, no account, no telemetry**
 
+### Search in 中文, find the English PDF — no filename to remember, nothing uploaded.
+
+**⬇ [Download Scry for Windows](https://github.com/xxx12e/scry/releases/latest)** — unzip, double‑click the `.exe`. No Python, no install, 100% offline (~477 MB).
+
+<sub>Unsigned build, so Windows may ask you to confirm — verify the <a href="#is-it-safe-to-run">SHA‑256</a> if you like.</sub>
+
 </div>
 
 ---
@@ -23,7 +29,7 @@ You remember *what a file was about*. You don't remember its name, or which of f
 
 **Scry searches by meaning.** At its core is a **purpose‑built multilingual semantic model** — a compact **118‑million‑parameter embedding network** that understands *what text means* across **100+ languages**, **not** a bloated multi‑gigabyte local LLM bolted onto a search box. It **re‑ranks whole‑disk candidates with that model** in milliseconds, and — when you want the very best quality — it **builds a complete deep semantic index of the folders you choose**, embedding every passage so it can match your *idea* against files that share **zero words** with your query — **even in a different language** (search 中文, find English files, and vice versa).
 
-A real semantic engine, not a keyword matcher with a marketing label — and it's **209 MB, lightweight, and 100% on your machine.**
+A real semantic engine, not a keyword matcher with a marketing label — and its model is **235 MB, lightweight, and 100% on your machine.**
 
 > It's the search **Everything** should have grown into: same instant, whole‑disk reflex — but it understands you.
 
@@ -51,6 +57,8 @@ A real semantic engine, not a keyword matcher with a marketing label — and it'
 | ⚡ **Filename** | Instant whole‑disk filename search, the way you already know it. | None. |
 | 🎯 **Deep Semantic (Control Mode)** | Point it at folders (or a whole drive) and it builds its *own* deep index — the highest quality, catches paraphrases with **zero word overlap**. First scan is full; after that it only touches what changed, and keeps itself up to date in the background. | One click per folder. |
 
+> **New here? Pick the right mode for your first try.** *Whole‑disk Semantic* is instant and needs zero setup, but it draws its candidates from the Windows index — so a **pure paraphrase or cross‑language query with no shared words** (exactly the "wow" demo) can come up empty there. For that, use **Deep Semantic**: add the folder once, let it index, and it matches *meaning* even when nothing overlaps. Rule of thumb — **Whole‑disk = broad & instant; Deep = deepest meaning.**
+
 Plus: **bilingual UI (中文 / English, one‑click toggle)**, keyboard‑driven (`Enter` to search, `↑/↓` to move, `Enter` to open), live‑highlighted snippets that show *why* a file matched, and a portable build that runs on any Windows PC with **no Python install**.
 
 **Optional add‑on packs (DLC).** The base stays tiny and 100% offline; heavier extras (starting with a larger multilingual model) download **only when you click**, from this repo's releases, SHA‑256‑verified — see **Add‑ons** in the app.
@@ -63,23 +71,38 @@ The more you use Scry, the better it fits you: the **files and folders you actua
 
 ## The privacy stance (the whole point)
 
-- **Fully local.** The embedding model is bundled. Unplug the network and everything still works.
-- **Binds `127.0.0.1` only.** Nothing is served to your LAN, let alone the internet.
-- **No accounts, no telemetry, no "anonymous usage stats."** There is no server to call.
-- Your index and settings live in `~/.localsearch_index` on your own disk.
+- **Read‑only.** Scry only ever *reads* your files to index them — it never modifies, moves, renames, or deletes them. Your originals are untouched.
+- **Zero outbound connections.** The base app never talks to the network: it binds `127.0.0.1` only (not even your LAN), bundles the model, and has no server to call — no accounts, no telemetry, no "anonymous usage stats." Unplug the network and everything still works. The **only** time Scry reaches the internet is if *you* click to download an optional add‑on pack, from this repo's GitHub Releases, SHA‑256‑verified. (Image OCR uses a local Windows API — it doesn't go online either.)
+- **Fully local storage.** Your index and settings live in `~/.localsearch_index` on your own disk; delete that folder to wipe everything.
+- **Light footprint.** CPU‑only (no GPU required); the bundled model is ~235 MB, and a 100k‑file deep index is ~154 MB on disk. Whole‑disk Semantic and Filename modes keep no index at all.
 
-## Quick start
+## Get it (no Python needed)
 
-**Run from source**
+**[⬇ Download the latest release](https://github.com/xxx12e/scry/releases/latest)**, unzip anywhere, and double‑click **`本地语义搜索器.exe`** (or **`Run 运行.bat`**). A console window opens — keep it open; your browser opens the search page in a few seconds. That's it: any Windows 10/11 PC, fully offline, nothing to install.
+
+<a id="is-it-safe-to-run"></a>
+**Is it safe to run?** Yes, and here's how to check rather than take my word for it:
+
+- It's an **unsigned** build, so Windows SmartScreen may say *"Windows protected your PC."* Click **More info → Run anyway**.
+- Verify the download is exactly the file I published — the SHA‑256 of `Scry-v1.4-win64-portable.zip` is:
+
+```
+967e132346c158eaeea8e07871184a39795e73c3d4e7e083a9521c5b9ee21162
+```
+```powershell
+Get-FileHash Scry-v1.4-win64-portable.zip -Algorithm SHA256   # should match the line above
+```
+
+- It **only reads** your files and **never phones home** — see [The privacy stance](#the-privacy-stance-the-whole-point) below.
+
+**Run from source (developers)**
 
 ```bash
 pip install -r requirements.txt
 python -m localsearch.app          # opens http://127.0.0.1:8731 in your browser
 ```
 
-or just double‑click **`run.bat`** (Windows).
-
-**Portable build (no Python needed)** — package it into a single self‑contained folder with a bundled CPU model, then double‑click the `.exe`. Any Windows machine, fully offline. See [`localsearch/README.md`](localsearch/README.md) for the packaging recipe.
+or double‑click **`run.bat`** (Windows). Packaging recipe: [`localsearch/README.md`](localsearch/README.md).
 
 ## How it works
 
